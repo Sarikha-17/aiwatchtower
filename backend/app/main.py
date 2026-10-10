@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from app.services import trace_recorder
+from app.services import replay_engine, trace_recorder
 from app.services.runner import load_scenarios, run_by_id
 
 app = FastAPI(title="AIWatchTower", version="0.1.0")
@@ -54,6 +54,11 @@ def trace_detail(trace_id: str):
     if trace is None:
         raise HTTPException(404, "trace not found")
     return trace
+
+
+@app.get("/api/metrics")
+def metrics():
+    return replay_engine.compute_metrics()
 
 
 @app.get("/")

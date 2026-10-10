@@ -62,6 +62,14 @@
   </div>
 
   <div class="card">
+    <h3 style="margin-top:0">Evidence: replay of recorded cases</h3>
+    <p class="note" id="sizes"></p>
+    <table id="evidence"><thead><tr><th>Metric</th><th>No firewall</th><th>Policy v1</th><th>Policy v2 (candidate)</th></tr></thead><tbody></tbody></table>
+    <div id="deltas" class="note" style="margin-top:12px"></div>
+    <ul class="note" id="notes"></ul>
+  </div>
+
+  <div class="card">
     <h3 style="margin-top:0">Recent runs</h3>
     <table><thead><tr><th>Time</th><th>Scenario</th><th>Mode</th><th>Verdict</th></tr></thead>
     <tbody id="history"></tbody></table>
@@ -107,6 +115,32 @@ async function loadHistory() {
     <td>${esc(r.mode)}</td><td>${esc(r.verdict)}</td></tr>`).join('');
 }
 
+
+function cell(m) {
+  const pct = (m.rate * 100).toFixed(0) + '%';
+  return `${m.k}/${m.n} (${pct}) <span class="note">CI ${(m.ci_low*100).toFixed(0)}-${(m.ci_high*100).toFixed(0)}%</span>`;
+}
+async function loadMetrics() {
+  const m = await api('/api/metrics');
+  const d = m.dataset_sizes, p = m.policies;
+  $('sizes').textContent = `${d.train_attacks} training attacks, ${d.held_out_attacks} held-out attacks, ${d.legitimate_tasks} legitimate tasks. Held-out results are reported separately.`;
+  const rows = [
+    ['Attack success rate (training attacks)', 'train_asr'],
+    ['Attack success rate (HELD-OUT attacks)', 'held_out_asr'],
+    ['Legitimate-task success', 'legit_success'],
+    ['False-positive rate', 'false_positive_rate'],
+  ];
+  $('evidence').querySelector('tbody').innerHTML = rows.map(([label, key]) =>
+    `<tr><td>${label}</td><td>${cell(p.none[key])}</td><td>${cell(p.v1[key])}</td><td>${cell(p.v2[key])}</td></tr>`).join('') +
+    `<tr><td>Firewall latency (median / p95)</td><td>-</td><td>${p.v1.median_firewall_latency_ms} / ${p.v1.p95_firewall_latency_ms} ms</td><td>${p.v2.median_firewall_latency_ms} / ${p.v2.p95_firewall_latency_ms} ms</td></tr>`;
+  const c = m.v1_to_v2;
+  $('deltas').innerHTML =
+    `<b>v1 to v2:</b> newly blocked ${c.newly_blocked_train_attacks.length} training and ${c.newly_blocked_held_out_attacks.length} held-out attacks; ` +
+    `legitimate tasks newly blocked: ${esc(c.newly_blocked_legitimate_tasks.join(', ') || 'none')}; ` +
+    `held-out attacks still succeeding: ${esc(c.still_successful_held_out_attacks.join(', ') || 'none')}.`;
+  $('notes').innerHTML = m.notes.map(n => `<li>${esc(n)}</li>`).join('');
+}
+
 async function run() {
   $('run').disabled = true;
   try {
@@ -127,6 +161,7 @@ async function run() {
   $('run').onclick = run;
   showRequest();
   loadHistory();
+  loadMetrics();
 })();
 </script>
 </body>

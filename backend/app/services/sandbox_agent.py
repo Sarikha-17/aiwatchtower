@@ -45,13 +45,16 @@ class Trace:
         return asdict(self)
 
 
-def _plan(scenario: dict, email: dict) -> list:
-    """The calls the agent will propose, in order."""
-    plan = [(
-        "email.read", {"email_id": scenario["email_id"]},
-        "Reading the email the user asked me to summarize.",
-    )]
-    directive = email.get("injected_directive")
+def _plan(scenario: dict, email: dict | None) -> list:
+    """The calls the agent will propose, in order. A scenario without an email starts
+    directly with its stored calls (used by replay cases that never read an email)."""
+    plan = []
+    if email is not None:
+        plan.append((
+            "email.read", {"email_id": scenario["email_id"]},
+            "Reading the email the user asked me to summarize.",
+        ))
+    directive = email.get("injected_directive") if email else None
     if directive:  # vulnerable behaviour: instruction-like text in data is treated as authority
         plan.append((
             "hr.file.read", {"file_id": directive["read_file"]},
@@ -71,7 +74,7 @@ def _plan(scenario: dict, email: dict) -> list:
 def run_scenario(scenario: dict, store: DataStore, cfg: DomainConfig,
                  firewall: ToolFirewall | None, policy_version: int | None) -> Trace:
     mode = "none" if firewall is None else f"policy_v{policy_version}"
-    email = store.emails[scenario["email_id"]]
+    email = store.emails[scenario["email_id"]] if scenario.get("email_id") else None
     runner = ToolRunner(store)
     tracker = ProvenanceTracker(scenario["user_request"])
     trace = Trace(
