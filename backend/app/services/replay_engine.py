@@ -120,3 +120,56 @@ def compute_metrics() -> dict:
             "Cost is 0 because Level 2 uses no model calls; Nemotron costs are added in Level 3.",
         ],
     }
+
+
+def replay_candidate(active: dict, candidate: dict) -> dict:
+    """Replay every stored case under the active policy and a candidate. No agent or model is called."""
+    before, after = replay_all(active), replay_all(candidate)
+    sb, sa = summarize(before), summarize(after)
+    delta = compare(before, after)
+    return {
+        "base_policy_version": active["version"],
+        "candidate_policy_version": candidate["version"],
+        "total_traces": len(before),
+        "train_attack_traces": sb["train_asr"]["n"],
+        "held_out_attack_traces": sb["held_out_asr"]["n"],
+        "legitimate_task_traces": sb["legit_success"]["n"],
+        "newly_blocked_train_attacks": len(delta["newly_blocked_train_attacks"]),
+        "newly_blocked_held_out_attacks": len(delta["newly_blocked_held_out_attacks"]),
+        "still_successful_attacks": len(delta["still_successful_train_attacks"]) + len(delta["still_successful_held_out_attacks"]),
+        "newly_blocked_legitimate_tasks": len(delta["newly_blocked_legitimate_tasks"]),
+        "asr_before": sb["train_asr"]["rate"], "asr_after": sa["train_asr"]["rate"],
+        "held_out_asr_before": sb["held_out_asr"]["rate"], "held_out_asr_after": sa["held_out_asr"]["rate"],
+        "legitimate_task_success_before": sb["legit_success"]["rate"],
+        "legitimate_task_success_after": sa["legit_success"]["rate"],
+        "false_positive_rate_after": sa["false_positive_rate"]["rate"],
+        "median_firewall_latency_ms": sa["median_firewall_latency_ms"],
+        "p95_firewall_latency_ms": sa["p95_firewall_latency_ms"],
+        "estimated_cost_per_1000_actions_usd": 0.0,
+        "before": sb, "after": sa, "cases": delta,
+        "notes": ["Computed from recorded fabricated cases. Held-out results are reported separately and small "
+                  "samples are suggestive, not conclusive."],
+    }
+
+
+def compute_evidence(versions: list) -> dict:
+    """Metrics for 'no firewall' plus every stored policy version. versions: [{version, status, policy}]."""
+    cases = datasets.load_all_cases()
+    columns = [{"name": "No firewall", "status": None, "summary": summarize(replay_all(None))}]
+    for v in versions:
+        columns.append({"name": f"Policy v{v['version']}", "status": v["status"],
+                        "summary": summarize(replay_all(v["policy"]))})
+    return {
+        "dataset_sizes": {
+            "train_attacks": sum(c["kind"] == datasets.TRAIN for c in cases),
+            "held_out_attacks": sum(c["kind"] == datasets.HELD_OUT for c in cases),
+            "legitimate_tasks": sum(c["kind"] == datasets.LEGIT for c in cases),
+        },
+        "columns": columns,
+        "notes": [
+            "All cases are fabricated and hand-written; they run only inside the local sandbox.",
+            "Replay measures these recorded traces, not unknown adaptive attacks.",
+            "Small samples are suggestive, not conclusive: see the Wilson 95% intervals.",
+            "Held-out cases were written by the same author as the policy logic, so they are not an independent benchmark.",
+        ],
+    }

@@ -32,6 +32,7 @@ class Decision:
     explanation: str = ""
     labels: dict = field(default_factory=dict)
     latency_ms: float = 0.0
+    rule_name: str | None = None
 
 
 def load_policy(path: Path) -> dict:
@@ -41,14 +42,34 @@ def load_policy(path: Path) -> dict:
 
 
 def validate_policy(policy: dict) -> None:
-    for key in ("id", "version", "when", "then"):
+    """A policy is either one rule (when/then at top level) or an additive list under 'rules'."""
+    for key in ("id", "version"):
         if key not in policy:
             raise PolicyError(f"policy missing field: {key}")
-    unknown = set(policy["when"]) - SUPPORTED_CONDITIONS
-    if unknown:
-        raise PolicyError(f"unsupported conditions: {sorted(unknown)}")
-    if policy["then"] not in ("block", "review"):
-        raise PolicyError("policy 'then' must be 'block' or 'review'")
+    raw = policy["rules"] if "rules" in policy else [policy]
+    if not raw:
+        raise PolicyError("policy has no rules")
+    for rule in raw:
+        for key in ("when", "then"):
+            if key not in rule:
+                raise PolicyError(f"policy missing field: {key}")
+        unknown = set(rule["when"]) - SUPPORTED_CONDITIONS
+        if unknown:
+            raise PolicyError(f"unsupported conditions: {sorted(unknown)}")
+        if rule["then"] not in ("block", "review"):
+            raise PolicyError("policy 'then' must be 'block' or 'review'")
+
+
+def rules_of(policy: dict) -> list:
+    """Normalized rule list for a policy (single-rule or additive 'rules' form)."""
+    multi = "rules" in policy
+    raw = policy["rules"] if multi else [policy]
+    return [{
+        "id": policy["id"], "version": policy["version"],
+        "name": r.get("name") if multi else None,
+        "severity": r.get("severity", policy.get("severity", "high")),
+        "when": r["when"], "then": r["then"],
+    } for r in raw]
 
 
 def build_context(tool: str, args: dict, store: DataStore, cfg: DomainConfig, influenced: bool) -> dict:
@@ -101,20 +122,23 @@ class PolicyEngine:
 
     def evaluate(self, ctx: dict) -> Decision:
         for policy in self.policies:
-            matched, reasons = rule_matches(policy, ctx)
-            if matched:
-                verdict = "BLOCK" if policy["then"] == "block" else "REVIEW"
-                return Decision(
-                    decision=verdict,
-                    policy_id=policy["id"],
-                    policy_version=policy["version"],
-                    reasons=reasons,
-                    risk_level=policy.get("severity", "high"),
-                    explanation=(
-                        f"{verdict} by {policy['id']} v{policy['version']}: "
-                        + "; ".join(reasons) + "."
-                    ),
-                )
+            for rule in rules_of(policy):
+                matched, reasons = rule_matches(rule, ctx)
+                if matched:
+                    verdict = "BLOCK" if rule["then"] == "block" else "REVIEW"
+                    tag = f" [{rule['name']}]" if rule["name"] else ""
+                    return Decision(
+                        decision=verdict,
+                        policy_id=rule["id"],
+                        policy_version=rule["version"],
+                        reasons=reasons,
+                        risk_level=rule["severity"],
+                        explanation=(
+                            f"{verdict} by {rule['id']} v{rule['version']}{tag}: "
+                            + "; ".join(reasons) + "."
+                        ),
+                        rule_name=rule["name"],
+                    )
         return Decision(
             decision="ALLOW", policy_id=None, policy_version=None,
             reasons=["no policy rule matched"], risk_level="low",

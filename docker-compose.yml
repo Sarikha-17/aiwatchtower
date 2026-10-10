@@ -1,0 +1,22 @@
+# Run:  docker compose up --build      then open http://localhost:8000
+# Variables are read from a .env file next to this file (see .env.example). Never commit .env.
+services:
+  aiwatchtower:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      NEBIUS_API_KEY: ${NEBIUS_API_KEY:-}
+      NEBIUS_BASE_URL: ${NEBIUS_BASE_URL:-https://api.tokenfactory.nebius.com/v1/}
+      NEMOTRON_NANO_MODEL: ${NEMOTRON_NANO_MODEL:-}
+      NEMOTRON_SUPER_MODEL: ${NEMOTRON_SUPER_MODEL:-}
+      NEMOTRON_ULTRA_MODEL: ${NEMOTRON_ULTRA_MODEL:-}
+      DEMO_MODE: ${DEMO_MODE:-false}
+      NANO_INTENT_CHECK: ${NANO_INTENT_CHECK:-off}
+      MODEL_PRICE_INPUT_PER_1M_USD: ${MODEL_PRICE_INPUT_PER_1M_USD:-}
+      MODEL_PRICE_OUTPUT_PER_1M_USD: ${MODEL_PRICE_OUTPUT_PER_1M_USD:-}
+    volumes:
+      - aiwatchtower_data:/app/storage
+    restart: unless-stopped
+volumes:
+  aiwatchtower_data:

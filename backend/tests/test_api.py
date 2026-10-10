@@ -5,8 +5,7 @@ from app.main import app
 
 
 @pytest.fixture
-def client(tmp_path, monkeypatch):
-    monkeypatch.setenv("AIWATCHTOWER_DB", str(tmp_path / "test.db"))
+def client():
     return TestClient(app)
 
 
@@ -17,7 +16,8 @@ def run(client, scenario, mode):
 
 
 def test_health(client):
-    assert client.get("/health").json() == {"status": "ok"}
+    body = client.get("/health").json()
+    assert body["status"] == "ok" and body["demo_mode"] is True and body["model_api_configured"] is False
 
 
 def test_scenarios_listed(client):
@@ -25,13 +25,18 @@ def test_scenarios_listed(client):
     assert {"legit_invoice_summary", "obvious_attack", "v1_bypass"} <= set(ids)
 
 
-def test_bypass_succeeds_under_v1_and_blocked_under_v2(client):
-    assert run(client, "v1_bypass", "v1")["verdict"] == "ATTACK SUCCEEDED"
-    assert run(client, "v1_bypass", "v2")["verdict"] == "ATTACK BLOCKED"
+def test_bypass_succeeds_without_firewall_and_under_active_v1(client):
+    assert run(client, "v1_bypass", "none")["verdict"] == "ATTACK SUCCEEDED"
+    assert run(client, "v1_bypass", "active")["verdict"] == "ATTACK SUCCEEDED"  # the v1 bypass
+
+
+def test_unapproved_version_is_not_runnable(client):
+    r = client.post("/api/agent/run-scenario", json={"scenario_id": "v1_bypass", "mode": "v2"})
+    assert r.status_code == 404
 
 
 def test_legit_task_completes(client):
-    assert run(client, "legit_invoice_summary", "v1")["verdict"] == "TASK COMPLETED"
+    assert run(client, "legit_invoice_summary", "active")["verdict"] == "TASK COMPLETED"
 
 
 def test_trace_is_persisted_and_retrievable(client):

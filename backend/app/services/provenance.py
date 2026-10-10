@@ -48,6 +48,7 @@ def target_identifiers(tool: str, args: dict) -> list[str]:
 
 class ProvenanceTracker:
     def __init__(self, trusted_request: str):
+        self.raw_request = trusted_request
         self.trusted_request = trusted_request.lower()
         self.labels: list[ContentLabel] = []
 

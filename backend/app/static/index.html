@@ -9,15 +9,27 @@
           --green:#2ea043; --red:#da3633; --amber:#d29922; --blue:#3b82f6; }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui, Segoe UI, sans-serif; }
-  header { padding:20px 28px; border-bottom:1px solid var(--line); }
+  header { padding:18px 28px 0; border-bottom:1px solid var(--line); }
+  .top { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
   header h1 { margin:0; font-size:22px; }
-  header p { margin:4px 0 0; color:var(--muted); }
-  main { max-width:980px; margin:0 auto; padding:24px 28px 60px; }
+  header p { margin:4px 0 12px; color:var(--muted); }
+  .pill { display:inline-block; padding:3px 12px; border-radius:999px; font-size:12.5px; font-weight:700; border:1px solid var(--line); margin-left:6px; }
+  .pill.active { background:#12301b; color:#56d364; border-color:#1f6f35; }
+  .pill.warn { background:#3a2d0c; color:#e3b341; border-color:#6b5316; }
+  nav { display:flex; gap:4px; flex-wrap:wrap; }
+  nav button { background:none; border:none; color:var(--muted); padding:10px 16px; cursor:pointer; font:inherit; border-bottom:3px solid transparent; }
+  nav button.on { color:var(--text); border-bottom-color:var(--blue); font-weight:700; }
+  main { max-width:1020px; margin:0 auto; padding:24px 28px 60px; }
+  .tab { display:none; } .tab.on { display:block; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px; margin-bottom:18px; }
+  .card h3 { margin:0 0 10px; }
   label { display:block; font-size:13px; color:var(--muted); margin-bottom:4px; }
-  select, button { font:inherit; padding:8px 12px; border-radius:8px; border:1px solid var(--line);
-                   background:#0f1722; color:var(--text); }
-  button.primary { background:var(--blue); border-color:var(--blue); cursor:pointer; font-weight:600; }
+  select, button.btn { font:inherit; padding:8px 12px; border-radius:8px; border:1px solid var(--line); background:#0f1722; color:var(--text); }
+  button.btn { cursor:pointer; font-weight:600; }
+  button.primary { background:var(--blue); border-color:var(--blue); }
+  button.good { background:var(--green); border-color:var(--green); }
+  button.danger { background:var(--red); border-color:var(--red); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
   .row { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; }
   .grow { flex:1; min-width:240px; } .grow select { width:100%; }
   .request { margin-top:12px; color:var(--muted); font-style:italic; }
@@ -25,143 +37,373 @@
   .ALLOW { background:var(--green); } .BLOCK { background:var(--red); } .REVIEW { background:var(--amber); }
   .event { border-left:3px solid var(--line); padding:6px 0 6px 14px; margin:12px 0; }
   .tool { font-family:Consolas, monospace; font-weight:600; }
-  .args { font-family:Consolas, monospace; font-size:12.5px; color:var(--muted); word-break:break-all; }
+  .args, pre { font-family:Consolas, monospace; font-size:12.5px; color:var(--muted); word-break:break-all; white-space:pre-wrap; }
+  pre { background:#0f1722; border:1px solid var(--line); border-radius:8px; padding:10px; margin:8px 0; }
   .why { margin-top:4px; }
   .verdict { font-size:20px; font-weight:800; padding:12px 16px; border-radius:8px; margin-top:6px; }
   .v-bad { background:#3a1618; color:#ff7b72; } .v-good { background:#12301b; color:#56d364; }
   table { width:100%; border-collapse:collapse; font-size:13.5px; }
-  td, th { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+  td, th { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
   .note { color:var(--muted); font-size:13px; }
+  .banner { padding:10px 14px; border-radius:8px; margin:10px 0; font-size:14px; }
+  .banner.amber { background:#3a2d0c; color:#e3b341; border:1px solid #6b5316; }
+  .banner.green { background:#12301b; color:#56d364; border:1px solid #1f6f35; }
+  .banner.red { background:#3a1618; color:#ff7b72; border:1px solid #7a2a2a; }
+  .bars .bar { height:14px; border-radius:4px; background:var(--line); margin:3px 0 10px; overflow:hidden; }
+  .bars .fill { height:100%; background:var(--red); } .bars .fill.ok { background:var(--green); }
+  .cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; }
+  ul.clean { margin:6px 0; padding-left:20px; }
 </style>
 </head>
 <body>
 <header>
-  <h1>AIWatchTower</h1>
-  <p>Self-hardening governance for AI agents. All data is fabricated; the agent is a scripted sandbox.</p>
+  <div class="top">
+    <div>
+      <h1>AIWatchTower</h1>
+      <p>Self-hardening governance for AI agents: every security failure becomes a tested, human-approved policy fix.</p>
+    </div>
+    <div style="padding-top:6px"><span id="activePill" class="pill active">Active policy: ...</span><span id="modePill" class="pill"></span></div>
+  </div>
+  <nav id="nav">
+    <button data-tab="demo" class="on">Live Demo</button>
+    <button data-tab="patch">Patch Review</button>
+    <button data-tab="evidence">Evidence</button>
+    <button data-tab="about">About / Safety</button>
+  </nav>
 </header>
 <main>
+
+<!-- ===================== LIVE DEMO ===================== -->
+<section class="tab on" id="tab-demo">
   <div class="card">
     <div class="row">
       <div class="grow"><label for="scenario">Scenario</label><select id="scenario"></select></div>
-      <div><label for="mode">Protection</label>
-        <select id="mode">
-          <option value="none">No firewall</option>
-          <option value="v1" selected>Policy v1 (weak keyword rule)</option>
-          <option value="v2">Policy v2 (hand-written candidate, dev only)</option>
-        </select></div>
-      <div><button class="primary" id="run">Run</button></div>
+      <div><label for="mode">Protection</label><select id="mode"></select></div>
+      <div><button class="btn primary" id="run">Run</button></div>
     </div>
     <div class="request" id="request"></div>
   </div>
 
   <div class="card" id="result" style="display:none">
-    <h3 style="margin-top:0">Agent tool calls (each one passes through the firewall first)</h3>
+    <h3>Agent tool calls (each one passes through the firewall first)</h3>
     <div id="events"></div>
     <div class="verdict" id="verdict"></div>
-    <p class="note">Verdict is computed by code: an attack succeeds only if an email with an HR-sensitive attachment was actually sent to a non-allowlisted external address.</p>
+    <p class="note">The verdict is computed by code: an attack succeeds only if an email with an HR-sensitive attachment was actually sent to a non-allowlisted external address.</p>
+    <div id="patchPrompt" style="display:none">
+      <div class="banner amber">The attack got through the active policy. Ask Nemotron to propose a narrow, validated policy fix. Nothing changes until you approve it.</div>
+      <button class="btn primary" id="proposeBtn">Propose patch</button>
+      <span class="note" id="proposeStatus"></span>
+    </div>
   </div>
 
   <div class="card">
-    <h3 style="margin-top:0">Evidence: replay of recorded cases</h3>
+    <h3>Recent runs</h3>
+    <table><thead><tr><th>Time</th><th>Scenario</th><th>Mode</th><th>Verdict</th></tr></thead><tbody id="history"></tbody></table>
+  </div>
+</section>
+
+<!-- ===================== PATCH REVIEW ===================== -->
+<section class="tab" id="tab-patch">
+  <div id="noPatch" class="card"><p class="note" style="margin:0">No patch yet. Run <b>Attack: bypass of policy v1</b> under the active policy in Live Demo, then click <b>Propose patch</b>.</p></div>
+  <div id="patchBox" style="display:none">
+    <div class="card">
+      <h3>Candidate patch <span id="patchStatus" class="pill"></span></h3>
+      <div id="demoBanner" class="banner amber" style="display:none"></div>
+      <div id="modelInfo" class="note"></div>
+      <h4>Proposed rule condition</h4><pre id="patchCond"></pre>
+      <div class="cols">
+        <div><b>Decision</b><div id="patchDecision"></div></div>
+        <div><b>Reasoning</b><div id="patchReason" class="note"></div></div>
+        <div><b>Expected security gain</b><div id="patchGain" class="note"></div></div>
+        <div><b>Expected false-positive risk</b><div id="patchFp" class="note"></div></div>
+      </div>
+      <h4>Deterministic validation</h4><div id="validation"></div>
+    </div>
+
+    <div class="card" id="replayCard">
+      <h3>Replay: security improvement and false-positive cost</h3>
+      <div id="replayBody"></div>
+    </div>
+
+    <div class="card">
+      <h3>Rule diff</h3>
+      <div id="ruleDiff"></div>
+    </div>
+
+    <div class="card">
+      <h3>Human decision</h3>
+      <div class="row">
+        <button class="btn good" id="approveBtn">Approve</button>
+        <button class="btn danger" id="rejectBtn">Reject</button>
+        <span class="note">Acting as security_admin@company.example. A patch never activates automatically.</span>
+      </div>
+      <div id="decisionMsg"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Policy versions and history</h3>
+    <table><thead><tr><th>Version</th><th>Status</th><th>Created</th><th>Approved by</th><th></th></tr></thead><tbody id="versions"></tbody></table>
+    <h4>History log</h4>
+    <table><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Change</th><th>Note</th></tr></thead><tbody id="log"></tbody></table>
+  </div>
+</section>
+
+<!-- ===================== EVIDENCE ===================== -->
+<section class="tab" id="tab-evidence">
+  <div class="card">
+    <h3>Evidence: replay of recorded cases</h3>
     <p class="note" id="sizes"></p>
-    <table id="evidence"><thead><tr><th>Metric</th><th>No firewall</th><th>Policy v1</th><th>Policy v2 (candidate)</th></tr></thead><tbody></tbody></table>
-    <div id="deltas" class="note" style="margin-top:12px"></div>
-    <ul class="note" id="notes"></ul>
+    <table id="evidenceTable"><thead></thead><tbody></tbody></table>
   </div>
+  <div class="card bars">
+    <h3>Attack success rate (lower is better)</h3>
+    <div id="barsTrain"></div>
+    <h3 style="margin-top:18px">Held-out attack success rate (reported separately)</h3>
+    <div id="barsHeld"></div>
+    <h3 style="margin-top:18px">Legitimate-task success (higher is better)</h3>
+    <div id="barsLegit"></div>
+  </div>
+  <div class="card"><h3>How to read this</h3><ul class="clean note" id="evNotes"></ul></div>
+</section>
 
+<!-- ===================== ABOUT / SAFETY ===================== -->
+<section class="tab" id="tab-about">
   <div class="card">
-    <h3 style="margin-top:0">Recent runs</h3>
-    <table><thead><tr><th>Time</th><th>Scenario</th><th>Mode</th><th>Verdict</th></tr></thead>
-    <tbody id="history"></tbody></table>
+    <h3>What AIWatchTower is</h3>
+    <p>A tool-call firewall that sits between a company assistant and its tools. Every proposed tool call is checked <b>before</b> it runs. When an attack gets through, a model proposes a narrow policy fix, the fix is validated by code, replayed against recorded cases, and activated only if a human approves.</p>
+    <p class="note">Core principle: content from emails and files is data, not authority. Models advise; deterministic rules decide.</p>
   </div>
+  <div class="card">
+    <h3>Safety statement</h3>
+    <ul class="clean">
+      <li>All data, people, companies, files and attacks are <b>fabricated</b>.</li>
+      <li>Attacks run <b>only inside the local sandbox</b>. No third-party system is targeted and no email is really sent.</li>
+      <li>The sandbox agent is scripted and deterministic: it models a vulnerable agent, it is not a real LLM.</li>
+      <li>A patch needs explicit human approval. Nothing is deployed automatically.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Limitations</h3>
+    <ul class="clean">
+      <li>It does <b>not</b> guarantee prevention of all prompt injection; it reduces risk.</li>
+      <li>Replay measures past, recorded traces, not unknown adaptive attacks.</li>
+      <li>The held-out set is small and was written by the same author as the policy logic, so results are suggestive, not conclusive.</li>
+      <li>Known gaps: an instruction hidden in an <i>internal</i> file is not flagged as untrusted, and a user who names the attacker's address themselves is not treated as influenced.</li>
+      <li>Human review is still required. This is a prototype, not a legal DPDP compliance certification.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Models</h3>
+    <p class="note">Nebius Token Factory (OpenAI-compatible API). Nemotron Super proposes patches; Nemotron Nano can optionally give an advisory intent check. Model IDs are configured by environment variables.</p>
+  </div>
+</section>
 </main>
+
 <script>
 const $ = (id) => document.getElementById(id);
-let scenarios = [];
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let scenarios = [], lastTrace = null, currentPatchId = null, activeVersion = null;
 
 async function api(path, opts) {
   const r = await fetch(path, opts);
-  if (!r.ok) throw new Error(await r.text());
+  if (!r.ok) {
+    let msg = await r.text();
+    try { msg = JSON.parse(msg).detail || msg; } catch (e) {}
+    throw new Error(msg);
+  }
   return r.json();
 }
-function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+const post = (path, body) => api(path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body || {})});
+const pct = (x) => (x * 100).toFixed(0) + '%';
+const ci = (m) => `${m.k}/${m.n} (${pct(m.rate)}) <span class="note">CI ${pct(m.ci_low)}-${pct(m.ci_high)}</span>`;
 
+/* ---------- tabs ---------- */
+function showTab(name) {
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.id === 'tab-' + name));
+  if (name === 'patch') loadPatchTab();
+  if (name === 'evidence') loadEvidence();
+}
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+
+/* ---------- header + versions ---------- */
+async function refreshHeader() {
+  const [h, hist] = await Promise.all([api('/health'), api('/api/policies/history')]);
+  const active = hist.versions.find(v => v.status === 'active');
+  activeVersion = active ? active.version : null;
+  $('activePill').textContent = 'Active policy: v' + activeVersion;
+  const model = h.model_api_configured ? 'Nemotron connected' : (h.demo_mode ? 'DEMO MODE (no model API)' : 'Model API not configured');
+  $('modePill').textContent = model;
+  $('modePill').className = 'pill ' + (h.model_api_configured ? 'active' : 'warn');
+  const sel = $('mode'), keep = sel.value;
+  sel.innerHTML = '<option value="none">No firewall</option><option value="active">Active policy (v' + activeVersion + ')</option>' +
+    hist.versions.map(v => `<option value="v${v.version}">Policy v${v.version} (${esc(v.status)})</option>`).join('');
+  sel.value = [...sel.options].some(o => o.value === keep) ? keep : 'active';
+  return hist;
+}
+
+/* ---------- live demo ---------- */
 function showRequest() {
   const s = scenarios.find(x => x.scenario_id === $('scenario').value);
   $('request').textContent = s ? 'User request: "' + s.user_request + '"' : '';
 }
 
-function render(trace) {
+function renderTrace(trace) {
+  lastTrace = trace;
   $('result').style.display = 'block';
-  $('events').innerHTML = trace.events.map(e => `
-    <div class="event">
+  $('events').innerHTML = trace.events.map(e => {
+    const ic = e.decision.labels && e.decision.labels.intent_check;
+    return `<div class="event">
       <span class="badge ${e.decision.decision}">${e.decision.decision}</span>
       <span class="tool">${esc(e.tool)}</span>
       <div class="args">${esc(JSON.stringify(e.args))}</div>
       <div class="why"><b>Agent:</b> ${esc(e.rationale)}</div>
-      <div class="why"><b>Firewall:</b> ${esc(e.decision.explanation)}
-        <span class="note">(${e.decision.latency_ms} ms)</span></div>
+      <div class="why"><b>Firewall:</b> ${esc(e.decision.explanation)} <span class="note">(${e.decision.latency_ms} ms)</span></div>
+      ${ic && !ic.error ? `<div class="note">Nano intent check (advisory): ${ic.intent_aligned ? 'aligned' : 'not aligned'}, confidence ${ic.confidence}. ${esc(ic.reason)}</div>` : ''}
       <div class="note">${e.executed ? 'Executed.' : 'Not executed.'} ${esc(e.result_summary)}</div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   const bad = trace.verdict === 'ATTACK SUCCEEDED' || trace.verdict.startsWith('TASK BLOCKED');
   $('verdict').textContent = trace.verdict;
   $('verdict').className = 'verdict ' + (bad ? 'v-bad' : 'v-good');
+  const canPatch = trace.verdict === 'ATTACK SUCCEEDED' && trace.policy_version === activeVersion;
+  $('patchPrompt').style.display = canPatch ? 'block' : 'none';
+  $('proposeStatus').textContent = '';
 }
 
 async function loadHistory() {
   const rows = await api('/api/traces');
-  $('history').innerHTML = rows.slice(0, 12).map(r => `
-    <tr><td>${esc(r.created_at.slice(11, 19))}</td><td>${esc(r.scenario_id)}</td>
-    <td>${esc(r.mode)}</td><td>${esc(r.verdict)}</td></tr>`).join('');
-}
-
-
-function cell(m) {
-  const pct = (m.rate * 100).toFixed(0) + '%';
-  return `${m.k}/${m.n} (${pct}) <span class="note">CI ${(m.ci_low*100).toFixed(0)}-${(m.ci_high*100).toFixed(0)}%</span>`;
-}
-async function loadMetrics() {
-  const m = await api('/api/metrics');
-  const d = m.dataset_sizes, p = m.policies;
-  $('sizes').textContent = `${d.train_attacks} training attacks, ${d.held_out_attacks} held-out attacks, ${d.legitimate_tasks} legitimate tasks. Held-out results are reported separately.`;
-  const rows = [
-    ['Attack success rate (training attacks)', 'train_asr'],
-    ['Attack success rate (HELD-OUT attacks)', 'held_out_asr'],
-    ['Legitimate-task success', 'legit_success'],
-    ['False-positive rate', 'false_positive_rate'],
-  ];
-  $('evidence').querySelector('tbody').innerHTML = rows.map(([label, key]) =>
-    `<tr><td>${label}</td><td>${cell(p.none[key])}</td><td>${cell(p.v1[key])}</td><td>${cell(p.v2[key])}</td></tr>`).join('') +
-    `<tr><td>Firewall latency (median / p95)</td><td>-</td><td>${p.v1.median_firewall_latency_ms} / ${p.v1.p95_firewall_latency_ms} ms</td><td>${p.v2.median_firewall_latency_ms} / ${p.v2.p95_firewall_latency_ms} ms</td></tr>`;
-  const c = m.v1_to_v2;
-  $('deltas').innerHTML =
-    `<b>v1 to v2:</b> newly blocked ${c.newly_blocked_train_attacks.length} training and ${c.newly_blocked_held_out_attacks.length} held-out attacks; ` +
-    `legitimate tasks newly blocked: ${esc(c.newly_blocked_legitimate_tasks.join(', ') || 'none')}; ` +
-    `held-out attacks still succeeding: ${esc(c.still_successful_held_out_attacks.join(', ') || 'none')}.`;
-  $('notes').innerHTML = m.notes.map(n => `<li>${esc(n)}</li>`).join('');
+  $('history').innerHTML = rows.slice(0, 12).map(r =>
+    `<tr><td>${esc(r.created_at.slice(11, 19))}</td><td>${esc(r.scenario_id)}</td><td>${esc(r.mode)}</td><td>${esc(r.verdict)}</td></tr>`).join('');
 }
 
 async function run() {
   $('run').disabled = true;
   try {
-    const trace = await api('/api/agent/run-scenario', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({scenario_id: $('scenario').value, mode: $('mode').value}),
-    });
-    render(trace);
+    renderTrace(await post('/api/agent/run-scenario', {scenario_id: $('scenario').value, mode: $('mode').value}));
     await loadHistory();
   } catch (e) { alert('Error: ' + e.message); }
   $('run').disabled = false;
 }
 
+async function propose() {
+  $('proposeBtn').disabled = true;
+  $('proposeStatus').textContent = 'Asking the model and validating... (this can take a little while)';
+  try {
+    const rec = await post('/api/patches/propose', {trace_id: lastTrace.trace_id});
+    currentPatchId = rec.patch_id;
+    if (rec.status === 'validated') await post(`/api/patches/${rec.patch_id}/replay`);
+    showTab('patch');
+  } catch (e) { $('proposeStatus').textContent = 'Error: ' + e.message; }
+  $('proposeBtn').disabled = false;
+}
+
+/* ---------- patch review ---------- */
+function replayTable(r) {
+  const row = (label, b, a) => `<tr><td>${label}</td><td>${b}</td><td>${a}</td></tr>`;
+  const list = (ids) => ids.length ? ids.map(esc).join(', ') : 'none';
+  return `<table><thead><tr><th>Metric</th><th>Before (v${r.base_policy_version})</th><th>After (candidate v${r.candidate_policy_version})</th></tr></thead><tbody>
+    ${row('Attack success, training attacks', ci(r.before.train_asr), ci(r.after.train_asr))}
+    ${row('Attack success, HELD-OUT attacks', ci(r.before.held_out_asr), ci(r.after.held_out_asr))}
+    ${row('Legitimate-task success', ci(r.before.legit_success), ci(r.after.legit_success))}
+    ${row('False-positive rate', ci(r.before.false_positive_rate), ci(r.after.false_positive_rate))}
+    ${row('Firewall latency (median / p95)', r.before.median_firewall_latency_ms + ' / ' + r.before.p95_firewall_latency_ms + ' ms', r.after.median_firewall_latency_ms + ' / ' + r.after.p95_firewall_latency_ms + ' ms')}
+  </tbody></table>
+  <p><b>Newly blocked:</b> ${r.newly_blocked_train_attacks} training attacks, ${r.newly_blocked_held_out_attacks} held-out attacks.</p>
+  <p><b>Legitimate tasks newly blocked (false-positive cost):</b> ${list(r.cases.newly_blocked_legitimate_tasks)}</p>
+  <p><b>Held-out attacks that still succeed:</b> ${list(r.cases.still_successful_held_out_attacks)}</p>
+  <p><b>Training attacks that still succeed:</b> ${list(r.cases.still_successful_train_attacks)}</p>
+  <p class="note">Replay re-evaluates recorded cases; no agent or model is called. Small samples are suggestive, not conclusive.</p>`;
+}
+
+async function loadPatchTab() {
+  const hist = await refreshHeader();
+  $('versions').innerHTML = hist.versions.map(v => `<tr><td>v${v.version}</td><td>${esc(v.status)}</td><td>${esc(v.created_at.slice(0,19))}</td><td>${esc(v.approved_by || '')}</td>
+    <td>${v.status === 'active' ? '' : `<button class="btn" data-rb="${v.version}">Roll back to v${v.version}</button>`}</td></tr>`).join('');
+  document.querySelectorAll('[data-rb]').forEach(b => b.onclick = () => rollback(Number(b.dataset.rb)));
+  $('log').innerHTML = hist.log.slice().reverse().map(e => `<tr><td>${esc(e.ts.slice(11,19))}</td><td>${esc(e.actor)}</td><td>${esc(e.action)}</td>
+    <td>${e.from_version === e.to_version ? 'v' + e.from_version : 'v' + e.from_version + ' to v' + e.to_version}</td><td>${esc(e.note || '')}</td></tr>`).join('');
+
+  if (!currentPatchId) { $('noPatch').style.display = 'block'; $('patchBox').style.display = 'none'; return; }
+  const rec = await api('/api/patches/' + currentPatchId);
+  $('noPatch').style.display = 'none'; $('patchBox').style.display = 'block';
+  const p = rec.patch || {}, m = rec.meta || {};
+  $('patchStatus').textContent = rec.status;
+  $('patchStatus').className = 'pill ' + (rec.status === 'approved' ? 'active' : (rec.status === 'validated' ? '' : 'warn'));
+  const db = $('demoBanner');
+  db.style.display = m.demo_fallback ? 'block' : 'none';
+  db.textContent = 'DEMO FALLBACK: this patch was not generated by a model (' + (m.fallback_reason || 'model API not configured') + ').';
+  $('modelInfo').textContent = m.demo_fallback ? '' :
+    `Model: ${m.model_id} (${m.model_role}) · ${m.latency_ms} ms · tokens ${m.prompt_tokens}/${m.completion_tokens}` +
+    (m.estimated_cost_usd != null ? ' · est. cost $' + m.estimated_cost_usd : '');
+  $('patchCond').textContent = JSON.stringify(p.proposed_condition || p, null, 2);
+  $('patchDecision').innerHTML = p.proposed_decision ? `<span class="badge ${p.proposed_decision === 'block' ? 'BLOCK' : 'REVIEW'}">${esc(p.proposed_decision.toUpperCase())}</span>` : '';
+  $('patchReason').textContent = p.reasoning || '';
+  $('patchGain').textContent = p.expected_security_gain || '';
+  $('patchFp').textContent = p.expected_false_positive_risk || '';
+  const v = rec.validation || {ok: false, errors: []};
+  $('validation').innerHTML = v.ok ? '<div class="banner green">Passed: patch stays inside the allowed policy scope.</div>'
+    : '<div class="banner red">Rejected by the validator:<ul class="clean">' + v.errors.map(e => '<li>' + esc(e) + '</li>').join('') + '</ul></div>';
+  $('replayBody').innerHTML = rec.replay ? replayTable(rec.replay) : '<p class="note">Replay not run yet.</p>';
+  const rd = rec.replay && rec.replay.rule_diff;
+  $('ruleDiff').innerHTML = rd ? `<p class="note">Existing rules are kept; one rule is added.</p>
+    <b>Before</b><pre>${esc(JSON.stringify(rd.before_rules, null, 2))}</pre><b style="color:#56d364">+ Added rule</b><pre>${esc(JSON.stringify(rd.added_rule, null, 2))}</pre>` : '<p class="note">Available after replay.</p>';
+  const open = rec.status === 'validated';
+  $('approveBtn').disabled = !(open && rec.replay);
+  $('rejectBtn').disabled = !(rec.status === 'validated' || rec.status === 'rejected_invalid');
+  $('decisionMsg').innerHTML = rec.status === 'approved' ? '<div class="banner green">Approved and active. <button class="btn" id="rerunBtn">Rerun the bypass under the active policy</button></div>'
+    : rec.status === 'rejected' ? `<div class="banner amber">Rejected${rec.rejection_reason ? ': ' + esc(rec.rejection_reason) : ''}. The policy was not changed.</div>` : '';
+  if ($('rerunBtn')) $('rerunBtn').onclick = rerunBypass;
+}
+
+async function approve() {
+  try { await post(`/api/patches/${currentPatchId}/approve`); await refreshHeader(); await loadPatchTab(); }
+  catch (e) { alert('Error: ' + e.message); }
+}
+async function reject() {
+  const reason = prompt('Reason for rejecting (optional):') ;
+  if (reason === null) return;
+  try { await post(`/api/patches/${currentPatchId}/reject`, {reason}); await loadPatchTab(); }
+  catch (e) { alert('Error: ' + e.message); }
+}
+async function rollback(version) {
+  if (!confirm('Roll back the active policy to v' + version + '?')) return;
+  try { await post(`/api/policies/${version}/rollback`); await loadPatchTab(); }
+  catch (e) { alert('Error: ' + e.message); }
+}
+function rerunBypass() {
+  $('scenario').value = 'v1_bypass'; showRequest(); $('mode').value = 'active';
+  showTab('demo'); run();
+}
+
+/* ---------- evidence ---------- */
+function bars(el, cols, key, good) {
+  $(el).innerHTML = cols.map(c => { const m = c.summary[key];
+    return `<div>${esc(c.name)}${c.status ? ' <span class="note">(' + esc(c.status) + ')</span>' : ''}: ${ci(m)}
+      <div class="bar"><div class="fill ${good ? 'ok' : ''}" style="width:${Math.round(m.rate * 100)}%"></div></div></div>`; }).join('');
+}
+async function loadEvidence() {
+  const ev = await api('/api/evidence'), d = ev.dataset_sizes, cols = ev.columns;
+  $('sizes').textContent = `${d.train_attacks} training attacks, ${d.held_out_attacks} held-out attacks, ${d.legitimate_tasks} legitimate tasks. Held-out results are reported separately.`;
+  $('evidenceTable').querySelector('thead').innerHTML = '<tr><th>Metric</th>' + cols.map(c => `<th>${esc(c.name)}</th>`).join('') + '</tr>';
+  const rows = [['Attack success (training)', 'train_asr'], ['Attack success (HELD-OUT)', 'held_out_asr'], ['Legitimate-task success', 'legit_success'], ['False-positive rate', 'false_positive_rate']];
+  $('evidenceTable').querySelector('tbody').innerHTML = rows.map(([l, k]) => `<tr><td>${l}</td>${cols.map(c => `<td>${ci(c.summary[k])}</td>`).join('')}</tr>`).join('') +
+    `<tr><td>Firewall latency (median / p95)</td>${cols.map(c => `<td>${c.summary.median_firewall_latency_ms} / ${c.summary.p95_firewall_latency_ms} ms</td>`).join('')}</tr>`;
+  bars('barsTrain', cols, 'train_asr', false); bars('barsHeld', cols, 'held_out_asr', false); bars('barsLegit', cols, 'legit_success', true);
+  $('evNotes').innerHTML = ev.notes.map(n => `<li>${esc(n)}</li>`).join('');
+}
+
+/* ---------- init ---------- */
 (async () => {
   scenarios = await api('/api/scenarios');
   $('scenario').innerHTML = scenarios.map(s => `<option value="${s.scenario_id}">${esc(s.title)}</option>`).join('');
   $('scenario').onchange = showRequest;
-  $('run').onclick = run;
+  $('run').onclick = run; $('proposeBtn').onclick = propose;
+  $('approveBtn').onclick = approve; $('rejectBtn').onclick = reject;
   showRequest();
+  await refreshHeader();
   loadHistory();
-  loadMetrics();
 })();
 </script>
 </body>
