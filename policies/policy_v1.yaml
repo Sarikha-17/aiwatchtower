@@ -1,0 +1,14 @@
+id: HR_EXTERNAL_SHARE
+version: 1
+description: Block external email whose body explicitly contains salary or payroll keywords.
+when:
+  tool: email.send
+  recipient_external: true
+  body_contains_any:
+    - salary
+    - payroll
+then: block
+severity: critical
+dpdp_tags:
+  - personal_data
+  - employee_data

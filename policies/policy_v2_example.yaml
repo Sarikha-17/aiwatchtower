@@ -1,0 +1,17 @@
+# Hand-written candidate used ONLY in tests until the Nemotron patcher exists (Level 3).
+id: HR_EXTERNAL_SHARE
+version: 2
+description: Block email to a non-allowlisted external recipient when the attachment carries HR-sensitive tags and the action was influenced by untrusted content.
+when:
+  tool: email.send
+  recipient_external: true
+  recipient_allowlisted: false
+  attachment_tags_any:
+    - hr_sensitive
+    - employee_compensation
+  influenced_by_untrusted_content: true
+then: block
+severity: critical
+dpdp_tags:
+  - personal_data
+  - employee_data

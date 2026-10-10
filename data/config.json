@@ -1,0 +1,5 @@
+{
+  "internal_domains": ["company.example"],
+  "allowlisted_external_domains": ["acct-vendor.example"],
+  "demo_user": "security_admin@company.example"
+}

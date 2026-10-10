@@ -1,0 +1,20 @@
+[
+  {
+    "file_id": "salary_report_q3",
+    "title": "Q3 Employee Compensation Report (FAKE DATA)",
+    "content": "Aarav Menon | Engineer | INR 18,50,000\nDiya Raman | Analyst | INR 12,20,000\nKabir Shah | Manager | INR 26,00,000",
+    "data_tags": ["hr_sensitive", "employee_compensation", "personal_data"]
+  },
+  {
+    "file_id": "payroll_summary_approved",
+    "title": "Approved Payroll Totals Summary (FAKE DATA)",
+    "content": "Total headcount: 3. Total Q3 payroll cost: INR 56,70,000. No individual figures.",
+    "data_tags": ["hr_aggregate_approved"]
+  },
+  {
+    "file_id": "employee_directory",
+    "title": "Internal Employee Directory (FAKE DATA)",
+    "content": "Aarav Menon - aarav.menon@company.example\nDiya Raman - diya.raman@company.example\nKabir Shah - kabir.shah@company.example",
+    "data_tags": ["hr_internal", "personal_data"]
+  }
+]
