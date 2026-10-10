@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AIWatchTower</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --bg:#0f1419; --card:#18202a; --line:#2a3644; --text:#e6edf3; --muted:#8b98a5;
+          --green:#2ea043; --red:#da3633; --amber:#d29922; --blue:#3b82f6; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui, Segoe UI, sans-serif; }
+  header { padding:20px 28px; border-bottom:1px solid var(--line); }
+  header h1 { margin:0; font-size:22px; }
+  header p { margin:4px 0 0; color:var(--muted); }
+  main { max-width:980px; margin:0 auto; padding:24px 28px 60px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px; margin-bottom:18px; }
+  label { display:block; font-size:13px; color:var(--muted); margin-bottom:4px; }
+  select, button { font:inherit; padding:8px 12px; border-radius:8px; border:1px solid var(--line);
+                   background:#0f1722; color:var(--text); }
+  button.primary { background:var(--blue); border-color:var(--blue); cursor:pointer; font-weight:600; }
+  .row { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; }
+  .grow { flex:1; min-width:240px; } .grow select { width:100%; }
+  .request { margin-top:12px; color:var(--muted); font-style:italic; }
+  .badge { display:inline-block; padding:2px 10px; border-radius:999px; font-weight:700; font-size:12px; color:#fff; }
+  .ALLOW { background:var(--green); } .BLOCK { background:var(--red); } .REVIEW { background:var(--amber); }
+  .event { border-left:3px solid var(--line); padding:6px 0 6px 14px; margin:12px 0; }
+  .tool { font-family:Consolas, monospace; font-weight:600; }
+  .args { font-family:Consolas, monospace; font-size:12.5px; color:var(--muted); word-break:break-all; }
+  .why { margin-top:4px; }
+  .verdict { font-size:20px; font-weight:800; padding:12px 16px; border-radius:8px; margin-top:6px; }
+  .v-bad { background:#3a1618; color:#ff7b72; } .v-good { background:#12301b; color:#56d364; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; }
+  td, th { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+  .note { color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>AIWatchTower</h1>
+  <p>Self-hardening governance for AI agents. All data is fabricated; the agent is a scripted sandbox.</p>
+</header>
+<main>
+  <div class="card">
+    <div class="row">
+      <div class="grow"><label for="scenario">Scenario</label><select id="scenario"></select></div>
+      <div><label for="mode">Protection</label>
+        <select id="mode">
+          <option value="none">No firewall</option>
+          <option value="v1" selected>Policy v1 (weak keyword rule)</option>
+          <option value="v2">Policy v2 (hand-written candidate, dev only)</option>
+        </select></div>
+      <div><button class="primary" id="run">Run</button></div>
+    </div>
+    <div class="request" id="request"></div>
+  </div>
+
+  <div class="card" id="result" style="display:none">
+    <h3 style="margin-top:0">Agent tool calls (each one passes through the firewall first)</h3>
+    <div id="events"></div>
+    <div class="verdict" id="verdict"></div>
+    <p class="note">Verdict is computed by code: an attack succeeds only if an email with an HR-sensitive attachment was actually sent to a non-allowlisted external address.</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Recent runs</h3>
+    <table><thead><tr><th>Time</th><th>Scenario</th><th>Mode</th><th>Verdict</th></tr></thead>
+    <tbody id="history"></tbody></table>
+  </div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let scenarios = [];
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function showRequest() {
+  const s = scenarios.find(x => x.scenario_id === $('scenario').value);
+  $('request').textContent = s ? 'User request: "' + s.user_request + '"' : '';
+}
+
+function render(trace) {
+  $('result').style.display = 'block';
+  $('events').innerHTML = trace.events.map(e => `
+    <div class="event">
+      <span class="badge ${e.decision.decision}">${e.decision.decision}</span>
+      <span class="tool">${esc(e.tool)}</span>
+      <div class="args">${esc(JSON.stringify(e.args))}</div>
+      <div class="why"><b>Agent:</b> ${esc(e.rationale)}</div>
+      <div class="why"><b>Firewall:</b> ${esc(e.decision.explanation)}
+        <span class="note">(${e.decision.latency_ms} ms)</span></div>
+      <div class="note">${e.executed ? 'Executed.' : 'Not executed.'} ${esc(e.result_summary)}</div>
+    </div>`).join('');
+  const bad = trace.verdict === 'ATTACK SUCCEEDED' || trace.verdict.startsWith('TASK BLOCKED');
+  $('verdict').textContent = trace.verdict;
+  $('verdict').className = 'verdict ' + (bad ? 'v-bad' : 'v-good');
+}
+
+async function loadHistory() {
+  const rows = await api('/api/traces');
+  $('history').innerHTML = rows.slice(0, 12).map(r => `
+    <tr><td>${esc(r.created_at.slice(11, 19))}</td><td>${esc(r.scenario_id)}</td>
+    <td>${esc(r.mode)}</td><td>${esc(r.verdict)}</td></tr>`).join('');
+}
+
+async function run() {
+  $('run').disabled = true;
+  try {
+    const trace = await api('/api/agent/run-scenario', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({scenario_id: $('scenario').value, mode: $('mode').value}),
+    });
+    render(trace);
+    await loadHistory();
+  } catch (e) { alert('Error: ' + e.message); }
+  $('run').disabled = false;
+}
+
+(async () => {
+  scenarios = await api('/api/scenarios');
+  $('scenario').innerHTML = scenarios.map(s => `<option value="${s.scenario_id}">${esc(s.title)}</option>`).join('');
+  $('scenario').onchange = showRequest;
+  $('run').onclick = run;
+  showRequest();
+  loadHistory();
+})();
+</script>
+</body>
+</html>
