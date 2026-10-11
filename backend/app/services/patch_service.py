@@ -58,6 +58,13 @@ def get_patch(patch_id: str) -> dict:
     return _row_to_patch(row)
 
 
+def list_patches(limit: int = 20) -> list:
+    """Most recent first. Lets the UI reopen the latest patch after a page reload."""
+    with get_conn() as conn:
+        rows = conn.execute("SELECT * FROM patches ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+    return [_row_to_patch(r) for r in rows]
+
+
 def _save(patch_id, **fields) -> None:
     cols = ", ".join(f"{k}=?" for k in fields)
     with get_conn() as conn:

@@ -119,3 +119,14 @@ def test_evidence_lists_every_stored_version(client):
     cols = client.get("/api/evidence").json()["columns"]
     assert [c["name"] for c in cols] == ["No firewall", "Policy v1", "Policy v2"]
     assert cols[2]["summary"]["train_asr"]["k"] == 0
+
+
+def test_patch_list_returns_latest_first_for_page_reload(client):
+    assert client.get("/api/patches").json() == []
+    first = propose_from_bypass(client)["patch_id"]
+    client.post(f"/api/patches/{first}/reject", json={"reason": "test"})
+    second = propose_from_bypass(client)["patch_id"]
+    listed = client.get("/api/patches").json()
+    assert [p["patch_id"] for p in listed][0] == second
+    assert {p["patch_id"] for p in listed} == {first, second}
+    assert listed[0]["status"] == "validated"

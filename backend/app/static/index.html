@@ -323,8 +323,12 @@ async function loadPatchTab() {
     <td>${v.status === 'active' ? '' : `<button class="btn" data-rb="${v.version}">Roll back to v${v.version}</button>`}</td></tr>`).join('');
   document.querySelectorAll('[data-rb]').forEach(b => b.onclick = () => rollback(Number(b.dataset.rb)));
   $('log').innerHTML = hist.log.slice().reverse().map(e => `<tr><td>${esc(e.ts.slice(11,19))}</td><td>${esc(e.actor)}</td><td>${esc(e.action)}</td>
-    <td>${e.from_version === e.to_version ? 'v' + e.from_version : 'v' + e.from_version + ' to v' + e.to_version}</td><td>${esc(e.note || '')}</td></tr>`).join('');
+    <td>${e.from_version == null ? 'initial: v' + e.to_version : (e.from_version === e.to_version ? 'v' + e.from_version : 'v' + e.from_version + ' to v' + e.to_version)}</td><td>${esc(e.note || '')}</td></tr>`).join('');
 
+  if (!currentPatchId) {
+    const recent = await api('/api/patches');
+    if (recent.length) currentPatchId = recent[0].patch_id;  // reopen the latest patch after a page reload
+  }
   if (!currentPatchId) { $('noPatch').style.display = 'block'; $('patchBox').style.display = 'none'; return; }
   const rec = await api('/api/patches/' + currentPatchId);
   $('noPatch').style.display = 'none'; $('patchBox').style.display = 'block';

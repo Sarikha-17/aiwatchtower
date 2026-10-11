@@ -103,6 +103,11 @@ def propose(req: ProposeRequest):
     return _svc(patch_service.propose, req.trace_id)
 
 
+@app.get("/api/patches")
+def patches():
+    return [{k: p[k] for k in ("patch_id", "created_at", "status", "base_version")} for p in patch_service.list_patches()]
+
+
 @app.get("/api/patches/{patch_id}")
 def patch_detail(patch_id: str):
     return _svc(patch_service.get_patch, patch_id)
