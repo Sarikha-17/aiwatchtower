@@ -34,14 +34,20 @@ def main() -> None:
         print("\nNEMOTRON_SUPER_MODEL is not set: copy one of the IDs above into ../.env.")
         return
     print(f"\nTest call to {s.super_model} ...")
-    r = httpx.post(f"{base}/chat/completions", headers=headers, timeout=90, json={
-        "model": s.super_model, "max_tokens": 20,
+    r = httpx.post(f"{base}/chat/completions", headers=headers, timeout=120, json={
+        "model": s.super_model, "max_tokens": min(s.max_tokens, 2000),
         "messages": [{"role": "user", "content": "Reply with the single word OK."}]})
     print("HTTP", r.status_code)
-    if r.status_code == 200:
-        print("Reply:", r.json()["choices"][0]["message"]["content"])
-    else:
+    if r.status_code != 200:
         print(r.text[:300])
+        return
+    choice = r.json()["choices"][0]
+    content = choice["message"].get("content")
+    print("Finish reason:", choice.get("finish_reason"))
+    print("Reply:", content)
+    if not content:
+        print("Empty reply. This is usually a reasoning model that used all its tokens thinking.")
+        print("Try a larger NEMOTRON_MAX_TOKENS in ../.env (for example 4000) and run this again.")
 
 
 if __name__ == "__main__":

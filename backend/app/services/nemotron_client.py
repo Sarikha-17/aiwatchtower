@@ -33,7 +33,7 @@ def model_for(role: str, settings: Settings) -> str:
 
 
 def chat_json(role: str, messages: list, settings: Settings | None = None,
-              timeout: float = 90.0, transport=None) -> dict:
+              timeout: float = 120.0, transport=None) -> dict:
     """Call one model role. Returns text, parsed JSON (or None), model, latency_ms, usage, est cost."""
     settings = settings or get_settings()
     model = model_for(role, settings)
@@ -48,7 +48,7 @@ def chat_json(role: str, messages: list, settings: Settings | None = None,
             resp = client.post(
                 url,
                 headers={"Authorization": f"Bearer {settings.api_key}"},
-                json={"model": model, "messages": messages, "temperature": 0.1, "max_tokens": 1500},
+                json={"model": model, "messages": messages, "temperature": 0.1, "max_tokens": settings.max_tokens},
             )
     except httpx.HTTPError as exc:
         raise NemotronError(f"request failed: {type(exc).__name__}") from exc
@@ -57,13 +57,20 @@ def chat_json(role: str, messages: list, settings: Settings | None = None,
         raise NemotronError(f"API returned HTTP {resp.status_code}: {resp.text[:200]}")
     try:
         data = resp.json()
-        text = data["choices"][0]["message"]["content"] or ""
-    except (ValueError, KeyError, IndexError, TypeError) as exc:
+        choice = data["choices"][0]
+        text = choice["message"].get("content") or ""
+        finish_reason = choice.get("finish_reason")
+    except (ValueError, KeyError, IndexError, TypeError, AttributeError) as exc:
         raise NemotronError("unexpected API response shape") from exc
+    if not text.strip():
+        if finish_reason == "length":
+            raise NemotronError("the model used all its tokens (including reasoning) before answering; "
+                                "raise NEMOTRON_MAX_TOKENS in .env")
+        raise NemotronError("the model returned an empty answer")
     usage = data.get("usage") or {}
     pt, ct = usage.get("prompt_tokens"), usage.get("completion_tokens")
     cost = None
     if pt is not None and ct is not None and settings.price_in_per_1m is not None and settings.price_out_per_1m is not None:
         cost = round((pt * settings.price_in_per_1m + ct * settings.price_out_per_1m) / 1_000_000, 6)
     return {"text": text, "parsed": extract_json(text), "model": model, "model_role": role,
-            "latency_ms": latency_ms, "prompt_tokens": pt, "completion_tokens": ct, "estimated_cost_usd": cost}
+            "latency_ms": latency_ms, "finish_reason": finish_reason, "prompt_tokens": pt, "completion_tokens": ct, "estimated_cost_usd": cost}

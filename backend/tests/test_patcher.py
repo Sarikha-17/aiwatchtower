@@ -101,3 +101,49 @@ def test_cost_estimate_uses_configured_prices(monkeypatch):
     assert out["estimated_cost_usd"] == pytest.approx(0.002)
     with pytest.raises(NemotronError):
         nemotron_client.chat_json("nano", [{"role": "user", "content": "x"}])  # no nano model configured
+
+
+def test_empty_answer_with_length_finish_gives_clear_error(monkeypatch):
+    _configure(monkeypatch)
+    handler = lambda req: httpx.Response(200, json={"choices": [{"message": {"content": None}, "finish_reason": "length"}]})
+    with pytest.raises(NemotronError) as exc:
+        nemotron_client.chat_json("super", [{"role": "user", "content": "x"}], transport=httpx.MockTransport(handler))
+    assert "NEMOTRON_MAX_TOKENS" in str(exc.value)
+
+
+def test_empty_answer_without_length_finish_is_an_error(monkeypatch):
+    _configure(monkeypatch)
+    handler = lambda req: httpx.Response(200, json={"choices": [{"message": {"content": ""}, "finish_reason": "stop"}]})
+    with pytest.raises(NemotronError):
+        nemotron_client.chat_json("super", [{"role": "user", "content": "x"}], transport=httpx.MockTransport(handler))
+
+
+def test_max_tokens_comes_from_environment(monkeypatch):
+    _configure(monkeypatch)
+    monkeypatch.setenv("NEMOTRON_MAX_TOKENS", "6000")
+    seen = {}
+    def handler(req):
+        seen["max_tokens"] = json.loads(req.content)["max_tokens"]
+        return httpx.Response(200, json={"choices": [{"message": {"content": "{}"}, "finish_reason": "stop"}]})
+    nemotron_client.chat_json("super", [{"role": "user", "content": "x"}], transport=httpx.MockTransport(handler))
+    assert seen["max_tokens"] == 6000
+
+
+def test_max_tokens_defaults_and_ignores_bad_values(monkeypatch):
+    from app.config import get_settings
+    assert get_settings().max_tokens == 4000
+    monkeypatch.setenv("NEMOTRON_MAX_TOKENS", "abc")
+    assert get_settings().max_tokens == 4000
+    monkeypatch.setenv("NEMOTRON_MAX_TOKENS", "-5")
+    assert get_settings().max_tokens == 4000
+
+
+def test_empty_model_answer_falls_back_only_in_demo_mode(monkeypatch):
+    _configure(monkeypatch)
+    handler = lambda req: httpx.Response(200, json={"choices": [{"message": {"content": None}, "finish_reason": "length"}]})
+    transport = httpx.MockTransport(handler)
+    with pytest.raises(patcher.PatcherError) as exc:
+        patcher.propose_patch(failed_trace(), load_candidate(1), transport=transport)
+    assert "NEMOTRON_MAX_TOKENS" in str(exc.value)
+    monkeypatch.setenv("DEMO_MODE", "true")
+    assert patcher.propose_patch(failed_trace(), load_candidate(1), transport=transport)["meta"]["demo_fallback"] is True

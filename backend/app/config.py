@@ -34,6 +34,7 @@ class Settings:
     price_in_per_1m: float | None
     price_out_per_1m: float | None
     nano_intent_mode: str  # off | annotate | escalate
+    max_tokens: int = 4000  # reasoning models spend tokens thinking before they answer
 
 
 def _float_or_none(name: str):
@@ -42,6 +43,14 @@ def _float_or_none(name: str):
         return float(raw) if raw else None
     except ValueError:
         return None
+
+
+def _int_or_default(name: str, default: int) -> int:
+    try:
+        value = int(os.getenv(name, "").strip() or default)
+    except ValueError:
+        return default
+    return value if value > 0 else default
 
 
 def get_settings() -> Settings:
@@ -57,6 +66,7 @@ def get_settings() -> Settings:
         price_out_per_1m=_float_or_none("MODEL_PRICE_OUTPUT_PER_1M_USD"),
         nano_intent_mode=os.getenv("NANO_INTENT_CHECK", "off").strip().lower()
         if os.getenv("NANO_INTENT_CHECK", "off").strip().lower() in ("off", "annotate", "escalate") else "off",
+        max_tokens=_int_or_default("NEMOTRON_MAX_TOKENS", 4000),
     )
 
 
