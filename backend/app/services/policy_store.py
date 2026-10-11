@@ -110,3 +110,14 @@ def log_event(actor: str, action: str, patch_id: str | None, note: str | None) -
         active = conn.execute("SELECT version FROM policy_versions WHERE status='active'").fetchone()["version"]
         _log(conn, actor, action, active, active, patch_id, note)
         conn.commit()
+
+
+def reset() -> None:
+    """Restore the demo to its initial state (policy v1, no traces or patches).
+    The model-call usage counter is deliberately NOT reset, so the daily cap cannot be bypassed."""
+    with get_conn() as conn:
+        for table in ("traces", "patches", "policy_versions", "policy_history"):
+            conn.execute(f"DELETE FROM {table}")
+        conn.commit()
+    get_active()  # reseeds v1
+    log_event("system", "reset", None, "Demo reset to the initial state")

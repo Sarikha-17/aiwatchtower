@@ -7,7 +7,7 @@ import json
 import uuid
 
 from app.config import get_settings
-from app.services import nemotron_client
+from app.services import nemotron_client, usage_guard
 from app.services.nemotron_client import NemotronError
 
 VOCABULARY = {
@@ -111,6 +111,10 @@ def propose_patch(failed_trace: dict, active_policy: dict, transport=None) -> di
     roles = ["super"] + (["ultra"] if settings.ultra_model else [])
     last_error = None
     for role in roles:
+        configured = bool(settings.api_key and nemotron_client.model_for(role, settings))
+        if configured and not usage_guard.allow_call(role):  # only real calls count toward the cap
+            last_error = "daily model-call cap reached"
+            break
         try:
             out = nemotron_client.chat_json(role, messages, settings, transport=transport)
         except NemotronError as exc:

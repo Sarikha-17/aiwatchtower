@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS patches (
     base_version INTEGER, source_trace_id TEXT, patch_json TEXT, validation_json TEXT,
     replay_json TEXT, meta_json TEXT, rejection_reason TEXT
 );
+CREATE TABLE IF NOT EXISTS model_calls (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, day TEXT NOT NULL, role TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS policy_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, actor TEXT NOT NULL,
     action TEXT NOT NULL, from_version INTEGER, to_version INTEGER, patch_id TEXT, note TEXT

@@ -62,7 +62,8 @@
       <h1>AIWatchTower</h1>
       <p>Self-hardening governance for AI agents: every security failure becomes a tested, human-approved policy fix.</p>
     </div>
-    <div style="padding-top:6px"><span id="activePill" class="pill active">Active policy: ...</span><span id="modePill" class="pill"></span></div>
+    <div style="padding-top:6px"><span id="activePill" class="pill active">Active policy: ...</span><span id="modePill" class="pill"></span>
+      <button class="btn" id="resetBtn" style="margin-left:8px;padding:3px 12px;font-size:12.5px">Reset demo</button></div>
   </div>
   <nav id="nav">
     <button data-tab="demo" class="on">Live Demo</button>
@@ -234,7 +235,8 @@ async function refreshHeader() {
   activeVersion = active ? active.version : null;
   $('activePill').textContent = 'Active policy: v' + activeVersion;
   const model = h.model_api_configured ? 'Nemotron connected' : (h.demo_mode ? 'DEMO MODE (no model API)' : 'Model API not configured');
-  $('modePill').textContent = model;
+  $('modePill').textContent = model + (h.model_calls_cap ? ` (${h.model_calls_today}/${h.model_calls_cap} model calls today)` : '');
+  $('resetBtn').style.display = h.reset_enabled ? 'inline-block' : 'none';
   $('modePill').className = 'pill ' + (h.model_api_configured ? 'active' : 'warn');
   const sel = $('mode'), keep = sel.value;
   sel.innerHTML = '<option value="none">No firewall</option><option value="active">Active policy (v' + activeVersion + ')</option>' +
@@ -376,6 +378,15 @@ async function rollback(version) {
   try { await post(`/api/policies/${version}/rollback`); await loadPatchTab(); }
   catch (e) { alert('Error: ' + e.message); }
 }
+async function resetDemo() {
+  if (!confirm('Reset the demo? This restores policy v1 and clears all runs and patches.')) return;
+  try {
+    await post('/api/admin/reset');
+    currentPatchId = null; lastTrace = null;
+    $('result').style.display = 'none';
+    await refreshHeader(); await loadHistory(); await loadPatchTab();
+  } catch (e) { alert('Error: ' + e.message); }
+}
 function rerunBypass() {
   $('scenario').value = 'v1_bypass'; showRequest(); $('mode').value = 'active';
   showTab('demo'); run();
@@ -404,7 +415,7 @@ async function loadEvidence() {
   $('scenario').innerHTML = scenarios.map(s => `<option value="${s.scenario_id}">${esc(s.title)}</option>`).join('');
   $('scenario').onchange = showRequest;
   $('run').onclick = run; $('proposeBtn').onclick = propose;
-  $('approveBtn').onclick = approve; $('rejectBtn').onclick = reject;
+  $('approveBtn').onclick = approve; $('rejectBtn').onclick = reject; $('resetBtn').onclick = resetDemo;
   showRequest();
   await refreshHeader();
   loadHistory();

@@ -9,7 +9,7 @@ from app.config import get_settings, load_dotenv
 
 load_dotenv()  # read ../.env before anything else
 
-from app.services import patch_service, policy_store, replay_engine, trace_recorder  # noqa: E402
+from app.services import patch_service, policy_store, replay_engine, trace_recorder, usage_guard  # noqa: E402
 from app.services.patch_service import ServiceError  # noqa: E402
 from app.services.runner import load_scenarios, run_by_id  # noqa: E402
 
@@ -40,7 +40,9 @@ def _svc(fn, *args):
 @app.get("/health")
 def health():
     s = get_settings()
-    return {"status": "ok", "demo_mode": s.demo_mode, "model_api_configured": bool(s.api_key and s.super_model)}
+    return {"status": "ok", "demo_mode": s.demo_mode, "model_api_configured": bool(s.api_key and s.super_model),
+            "model_calls_today": usage_guard.calls_today(), "model_calls_cap": s.max_model_calls_per_day,
+            "reset_enabled": s.allow_demo_reset}
 
 
 @app.get("/api/scenarios")
@@ -131,6 +133,14 @@ def patch_approve(patch_id: str):
 @app.post("/api/patches/{patch_id}/reject")
 def patch_reject(patch_id: str, req: RejectRequest):
     return _svc(patch_service.reject, patch_id, req.reason)
+
+
+@app.post("/api/admin/reset")
+def reset_demo():
+    if not get_settings().allow_demo_reset:
+        raise HTTPException(403, "demo reset is disabled on this deployment")
+    policy_store.reset()
+    return {"active_policy": policy_store.get_active()}
 
 
 # ---- evidence ----

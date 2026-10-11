@@ -10,3 +10,10 @@
 - **Secrets.** API keys live in `.env` (git-ignored) and are never logged or returned by the API.
 - **Not a certification.** This prototype is not legal DPDP compliance advice or certification.
 - **No guarantee.** It reduces risk; it does not prevent all prompt injection.
+
+## Public demo safeguards
+- **Daily model-call cap** (`MAX_MODEL_CALLS_PER_DAY`): once reached, patch requests use the clearly labeled demo
+  fallback (with `DEMO_MODE=true`) instead of calling the paid API. The counter survives demo resets.
+- **Reset demo** restores policy v1 and clears runs and patches, because the public demo has no login and all visitors
+  share one state. It can be disabled with `ALLOW_DEMO_RESET=false`.
+- The `/health` endpoint reports usage and cap but never any secret.

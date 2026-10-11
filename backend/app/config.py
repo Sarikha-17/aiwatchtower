@@ -35,6 +35,8 @@ class Settings:
     price_out_per_1m: float | None
     nano_intent_mode: str  # off | annotate | escalate
     max_tokens: int = 4000  # reasoning models spend tokens thinking before they answer
+    max_model_calls_per_day: int = 0  # 0 = unlimited; set a cap on a public deployment
+    allow_demo_reset: bool = True
 
 
 def _float_or_none(name: str):
@@ -53,6 +55,13 @@ def _int_or_default(name: str, default: int) -> int:
     return value if value > 0 else default
 
 
+def _nonneg_int(name: str) -> int:
+    try:
+        return max(0, int(os.getenv(name, "").strip() or 0))
+    except ValueError:
+        return 0
+
+
 def get_settings() -> Settings:
     """Read the environment on every call so tests and .env changes take effect."""
     return Settings(
@@ -67,6 +76,8 @@ def get_settings() -> Settings:
         nano_intent_mode=os.getenv("NANO_INTENT_CHECK", "off").strip().lower()
         if os.getenv("NANO_INTENT_CHECK", "off").strip().lower() in ("off", "annotate", "escalate") else "off",
         max_tokens=_int_or_default("NEMOTRON_MAX_TOKENS", 4000),
+        max_model_calls_per_day=_nonneg_int("MAX_MODEL_CALLS_PER_DAY"),
+        allow_demo_reset=os.getenv("ALLOW_DEMO_RESET", "true").strip().lower() != "false",
     )
 
 

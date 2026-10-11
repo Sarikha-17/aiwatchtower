@@ -6,7 +6,7 @@ opinion; in 'escalate' mode it may upgrade an ALLOW to REVIEW (never the other w
 import json
 
 from app.config import Settings, get_settings
-from app.services import nemotron_client
+from app.services import nemotron_client, usage_guard
 from app.services.nemotron_client import NemotronError
 
 SYSTEM_PROMPT = (
@@ -41,4 +41,8 @@ def make_live_checker(settings: Settings | None = None, transport=None):
     settings = settings or get_settings()
     if settings.nano_intent_mode == "off" or not settings.api_key or not settings.nano_model:
         return None
-    return lambda user_request, tool, args: check_intent(user_request, tool, args, settings, transport)
+    def checker(user_request, tool, args):
+        if not usage_guard.allow_call("nano"):
+            return {"error": "daily model-call cap reached", "model_role": "nano"}
+        return check_intent(user_request, tool, args, settings, transport)
+    return checker

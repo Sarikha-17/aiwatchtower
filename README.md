@@ -82,6 +82,9 @@ pip install -r requirements.txt
 | `NEMOTRON_ULTRA_MODEL` | Optional fallback if the Super call fails |
 | `DEMO_MODE` | `true` = use a clearly labeled seeded patch if the model API is unavailable |
 | `NANO_INTENT_CHECK` | `off` (default), `annotate`, or `escalate` |
+| `NEMOTRON_MAX_TOKENS` | Token budget per model call (default 4000; reasoning models spend tokens thinking) |
+| `MAX_MODEL_CALLS_PER_DAY` | Daily cap on real model calls (0 = unlimited). Recommended on a public deployment |
+| `ALLOW_DEMO_RESET` | `false` disables the Reset demo button and endpoint |
 | `MODEL_PRICE_INPUT_PER_1M_USD`, `MODEL_PRICE_OUTPUT_PER_1M_USD` | Optional, for the cost estimate |
 
 Model IDs are **not hardcoded**. Confirm final IDs, availability, pricing, context window and tool-call support in
