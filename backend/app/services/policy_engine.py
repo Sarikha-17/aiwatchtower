@@ -15,6 +15,7 @@ SUPPORTED_CONDITIONS = {
     "body_contains_any",
     "attachment_tags_any",
     "influenced_by_untrusted_content",
+    "body_leaks_sensitive_content",
 }
 
 
@@ -82,6 +83,7 @@ def build_context(tool: str, args: dict, store: DataStore, cfg: DomainConfig, in
             recipient_external=recipient_class != "internal",
             recipient_allowlisted=recipient_class == "allowlisted_external",
             body=args.get("body", ""),
+            body_leaks_sensitive_content=detectors.body_leaks_sensitive_content(args.get("body", ""), store),
             attachment_tags=detectors.attachment_tags(args.get("attachment_id"), store),
         )
     return ctx
@@ -94,7 +96,8 @@ def rule_matches(policy: dict, ctx: dict) -> tuple[bool, list]:
         if key == "tool":
             ok = ctx.get("tool") == expected
             why = f"tool is {expected}"
-        elif key in ("recipient_external", "recipient_allowlisted", "influenced_by_untrusted_content"):
+        elif key in ("recipient_external", "recipient_allowlisted", "influenced_by_untrusted_content",
+                       "body_leaks_sensitive_content"):
             ok = ctx.get(key) is expected
             why = f"{key} is {str(expected).lower()}"
         elif key == "body_contains_any":

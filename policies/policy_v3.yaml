@@ -1,0 +1,23 @@
+# v3 = v2_additive, but the keyword rule only fires when an untrusted email drove the action.
+id: HR_EXTERNAL_SHARE
+version: 3
+description: v2_additive with the keyword rule narrowed by influenced_by_untrusted_content.
+dpdp_tags: [personal_data, employee_data]
+rules:
+  - name: base_rule_v1_influenced_only
+    severity: critical
+    when:
+      tool: email.send
+      recipient_external: true
+      body_contains_any: [salary, payroll]
+      influenced_by_untrusted_content: true
+    then: block
+  - name: patch_seeded
+    severity: critical
+    when:
+      tool: email.send
+      recipient_external: true
+      recipient_allowlisted: false
+      attachment_tags_any: [hr_sensitive, employee_compensation]
+      influenced_by_untrusted_content: true
+    then: block

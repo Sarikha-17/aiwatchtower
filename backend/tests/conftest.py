@@ -9,7 +9,7 @@ from app.services.tools import ToolRunner
 def isolated_env(tmp_path, monkeypatch):
     """Every test gets its own database and NEVER calls the real model API, even if a .env exists."""
     monkeypatch.setenv("AIWATCHTOWER_DB", str(tmp_path / "test.db"))
-    for name in ("NEBIUS_API_KEY", "NEMOTRON_NANO_MODEL", "NEMOTRON_SUPER_MODEL", "NEMOTRON_ULTRA_MODEL"):
+    for name in ("NEBIUS_API_KEY", "NEMOTRON_NANO_MODEL", "NEMOTRON_SUPER_MODEL", "NEMOTRON_ULTRA_MODEL", "AGENT_MODEL"):
         monkeypatch.setenv(name, "")
     monkeypatch.setenv("DEMO_MODE", "true")
 

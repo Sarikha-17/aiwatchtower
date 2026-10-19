@@ -1,0 +1,48 @@
+# v5 = v4 plus two rules on message-body leaks of sensitive HR file content.
+id: HR_EXTERNAL_SHARE
+version: 5
+description: v4 plus body-leak rules (block when an untrusted email drove it, otherwise hold for review).
+dpdp_tags: [personal_data, employee_data]
+rules:
+  - name: base_rule_v1_influenced_only
+    severity: critical
+    when:
+      tool: email.send
+      recipient_external: true
+      body_contains_any: [salary, payroll]
+      influenced_by_untrusted_content: true
+    then: block
+  - name: patch_seeded
+    severity: critical
+    when:
+      tool: email.send
+      recipient_external: true
+      recipient_allowlisted: false
+      attachment_tags_any: [hr_sensitive, employee_compensation]
+      influenced_by_untrusted_content: true
+    then: block
+  - name: review_sensitive_external
+    severity: high
+    when:
+      tool: email.send
+      recipient_external: true
+      recipient_allowlisted: false
+      attachment_tags_any: [hr_sensitive, employee_compensation]
+    then: review
+  - name: block_body_leak_influenced
+    severity: critical
+    when:
+      tool: email.send
+      recipient_external: true
+      recipient_allowlisted: false
+      body_leaks_sensitive_content: true
+      influenced_by_untrusted_content: true
+    then: block
+  - name: review_body_leak
+    severity: high
+    when:
+      tool: email.send
+      recipient_external: true
+      recipient_allowlisted: false
+      body_leaks_sensitive_content: true
+    then: review

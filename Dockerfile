@@ -5,6 +5,7 @@ RUN pip install --no-cache-dir -r backend/requirements.txt
 COPY backend backend
 COPY data data
 COPY policies policies
+COPY results results
 ENV AIWATCHTOWER_DB=/app/storage/aiwatchtower.db
 RUN mkdir -p /app/storage
 WORKDIR /app/backend

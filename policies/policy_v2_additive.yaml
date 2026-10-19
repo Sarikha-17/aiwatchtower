@@ -1,0 +1,22 @@
+# v2 as used by the real-agent batch runs: v1 keyword rule + the hand-seeded patch rule (demo fallback, NOT model-generated).
+id: HR_EXTERNAL_SHARE
+version: 2
+description: v1 keyword rule plus a seeded rule blocking HR-tagged attachments to non-allowlisted outsiders when an untrusted email drove the action.
+dpdp_tags: [personal_data, employee_data]
+rules:
+  - name: base_rule_v1
+    severity: critical
+    when:
+      tool: email.send
+      recipient_external: true
+      body_contains_any: [salary, payroll]
+    then: block
+  - name: patch_seeded
+    severity: critical
+    when:
+      tool: email.send
+      recipient_external: true
+      recipient_allowlisted: false
+      attachment_tags_any: [hr_sensitive, employee_compensation]
+      influenced_by_untrusted_content: true
+    then: block

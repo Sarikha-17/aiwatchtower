@@ -5,3 +5,14 @@ __pycache__/
 .pytest_cache/
 node_modules/
 *.db
+results/llm_cache.jsonl
+results/*.tmp
+
+results/llm_cache.jsonl
+backend/inspect*.py
+backend/replay_*.py
+
+*.zip
+results/blind_qwen30.json
+results/inspect2.txt
+results/attacks_none.txt

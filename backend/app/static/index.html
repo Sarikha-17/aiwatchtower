@@ -165,6 +165,10 @@
     <h3 style="margin-top:18px">Legitimate-task success (higher is better)</h3>
     <div id="barsLegit"></div>
   </div>
+  <div class="card" id="agentCard">
+    <h3>Real LLM agent (offline batch, same attacks, same model, paired arms)</h3>
+    <div id="agentBody"><p class="note">No saved batch results yet. Run <code>python -m app.agent_batch</code> to produce them.</p></div>
+  </div>
   <div class="card"><h3>How to read this</h3><ul class="clean note" id="evNotes"></ul></div>
 </section>
 
@@ -398,6 +402,39 @@ function bars(el, cols, key, good) {
     return `<div>${esc(c.name)}${c.status ? ' <span class="note">(' + esc(c.status) + ')</span>' : ''}: ${ci(m)}
       <div class="bar"><div class="fill ${good ? 'ok' : ''}" style="width:${Math.round(m.rate * 100)}%"></div></div></div>`; }).join('');
 }
+
+function agentRow(label, arms, pick) {
+  return `<tr><td>${label}</td>${arms.map(a => `<td>${pick(a) || '-'}</td>`).join('')}</tr>`;
+}
+async function loadAgentEvidence() {
+  const titles = {original: 'Original attacks (explicit injections)', realistic: 'Realistic attacks (disguised business requests)'};
+  let html = '', any = false;
+  for (const set of ['original', 'realistic']) {
+    const ev = await api('/api/agent-evidence?set=' + set);
+    if (!ev.available) continue;
+    any = true;
+    const m = ev.meta, names = Object.keys(ev.summary), arms = names.map(n => ev.summary[n]);
+    const fmt = (x) => x ? ci(x) : '';
+    const sec = (key, title) => [
+      agentRow(title + ': agent tried to exfiltrate', arms, a => a[key] && fmt(a[key].attempted)),
+      agentRow(title + ': attack SUCCEEDED', arms, a => a[key] && fmt(a[key].succeeded)),
+      agentRow(title + ': blocked by firewall', arms, a => a[key] && fmt(a[key].blocked)),
+      agentRow(title + ': agent resisted (never tried)', arms, a => a[key] && fmt(a[key].not_attempted)),
+      agentRow(title + ': attacks that worked at least once', arms, a => a[key] && fmt(a[key].attacks_succeeded_at_least_once)),
+    ].join('');
+    html += `<h4>${titles[set]}</h4><p class="note">Model: ${esc(m.model)} · temperature ${m.temperature} · ${m.runs_per_case} run(s) per case · ${m.model_calls_made} model calls (${m.cache_hits} cached)${m.stopped_early ? ' · <b>STOPPED EARLY (budget)</b>' : ''}</p>
+    <table><thead><tr><th>Measure (run level)</th>${names.map(n => `<th>${esc(n === 'none' ? 'No firewall' : 'Policy ' + n)}</th>`).join('')}</tr></thead><tbody>
+    ${sec('train', 'Training attacks')}${sec('held_out', 'Held-out attacks')}
+    ${agentRow('Legitimate tasks completed', arms, a => a.legit && fmt(a.legit.completed))}
+    ${agentRow('Legitimate tasks blocked by firewall', arms, a => a.legit && fmt(a.legit.blocked))}
+    ${agentRow('Legitimate tasks incomplete (agent did not finish)', arms, a => a.legit && fmt(a.legit.incomplete))}
+    ${agentRow('Agent errors (API failure, step limit)', arms, a => a.legit && fmt(a.legit.errors))}
+    </tbody></table>`;
+  }
+  if (!any) return;
+  $('agentBody').innerHTML = html + `<p class="note">The agent is a real model with a neutral prompt; it is not told to be vulnerable. Success is judged by code from executed tool calls. Runs of the same attack are not independent, so the attack-level row is the fairer unit. The agent model is not the patcher model. Results come from an offline batch; this page only reads them.</p>`;
+}
+
 async function loadEvidence() {
   const ev = await api('/api/evidence'), d = ev.dataset_sizes, cols = ev.columns;
   $('sizes').textContent = `${d.train_attacks} training attacks, ${d.held_out_attacks} held-out attacks, ${d.legitimate_tasks} legitimate tasks. Held-out results are reported separately.`;
@@ -407,6 +444,7 @@ async function loadEvidence() {
     `<tr><td>Firewall latency (median / p95)</td>${cols.map(c => `<td>${c.summary.median_firewall_latency_ms} / ${c.summary.p95_firewall_latency_ms} ms</td>`).join('')}</tr>`;
   bars('barsTrain', cols, 'train_asr', false); bars('barsHeld', cols, 'held_out_asr', false); bars('barsLegit', cols, 'legit_success', true);
   $('evNotes').innerHTML = ev.notes.map(n => `<li>${esc(n)}</li>`).join('');
+  loadAgentEvidence();
 }
 
 /* ---------- init ---------- */

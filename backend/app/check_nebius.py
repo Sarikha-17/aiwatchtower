@@ -3,6 +3,8 @@
 Lists model IDs that mention 'nemotron' and sends one tiny test message to your configured Super model.
 Never prints your API key.
 """
+import sys
+
 import httpx
 
 from app.config import get_settings, load_dotenv
@@ -27,6 +29,11 @@ def main() -> None:
     ids = sorted(m["id"] for m in r.json().get("data", []))
     nemotron = [i for i in ids if "nemotron" in i.lower()]
     print(f"{len(ids)} models available.")
+    if "--all" in sys.argv:
+        print("All model IDs:")
+        for i in ids:
+            print("  ", i)
+        return
     print("Nemotron models:" if nemotron else "No model IDs mention 'nemotron'. First 30 models:")
     for i in (nemotron or ids[:30]):
         print("  ", i)

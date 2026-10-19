@@ -37,6 +37,7 @@ class Settings:
     max_tokens: int = 4000  # reasoning models spend tokens thinking before they answer
     max_model_calls_per_day: int = 0  # 0 = unlimited; set a cap on a public deployment
     allow_demo_reset: bool = True
+    agent_model: str = ""  # model that plays the agent in offline evaluation (defaults to Nano)
 
 
 def _float_or_none(name: str):
@@ -78,6 +79,7 @@ def get_settings() -> Settings:
         max_tokens=_int_or_default("NEMOTRON_MAX_TOKENS", 4000),
         max_model_calls_per_day=_nonneg_int("MAX_MODEL_CALLS_PER_DAY"),
         allow_demo_reset=os.getenv("ALLOW_DEMO_RESET", "true").strip().lower() != "false",
+        agent_model=os.getenv("AGENT_MODEL", "").strip() or os.getenv("NEMOTRON_NANO_MODEL", "").strip(),
     )
 
 

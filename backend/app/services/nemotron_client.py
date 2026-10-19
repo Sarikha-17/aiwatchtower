@@ -74,3 +74,40 @@ def chat_json(role: str, messages: list, settings: Settings | None = None,
         cost = round((pt * settings.price_in_per_1m + ct * settings.price_out_per_1m) / 1_000_000, 6)
     return {"text": text, "parsed": extract_json(text), "model": model, "model_role": role,
             "latency_ms": latency_ms, "finish_reason": finish_reason, "prompt_tokens": pt, "completion_tokens": ct, "estimated_cost_usd": cost}
+
+
+def chat_raw(model: str, messages: list, tools: list | None = None, temperature: float = 0.3,
+             settings: Settings | None = None, timeout: float = 120.0, transport=None) -> dict:
+    """One OpenAI-compatible chat call that may return tool calls. Returns the raw assistant message."""
+    settings = settings or get_settings()
+    if not settings.api_key:
+        raise NemotronError("NEBIUS_API_KEY is not set")
+    if not model:
+        raise NemotronError("no model ID configured (set AGENT_MODEL or NEMOTRON_NANO_MODEL)")
+    payload = {"model": model, "messages": messages, "temperature": temperature, "max_tokens": settings.max_tokens}
+    if tools:
+        payload["tools"] = tools
+        payload["tool_choice"] = "auto"
+    started = time.perf_counter()
+    try:
+        with httpx.Client(timeout=timeout, transport=transport) as client:
+            resp = client.post(settings.base_url.rstrip("/") + "/chat/completions",
+                               headers={"Authorization": f"Bearer {settings.api_key}"}, json=payload)
+    except httpx.HTTPError as exc:
+        raise NemotronError(f"request failed: {type(exc).__name__}") from exc
+    latency_ms = round((time.perf_counter() - started) * 1000, 1)
+    if resp.status_code != 200:
+        raise NemotronError(f"API returned HTTP {resp.status_code}: {resp.text[:200]}")
+    try:
+        data = resp.json()
+        choice = data["choices"][0]
+        message = choice["message"]
+    except (ValueError, KeyError, IndexError, TypeError) as exc:
+        raise NemotronError("unexpected API response shape") from exc
+    if not (message.get("content") or "").strip() and not message.get("tool_calls"):
+        if choice.get("finish_reason") == "length":
+            raise NemotronError("the model used all its tokens before answering; raise NEMOTRON_MAX_TOKENS")
+    usage = data.get("usage") or {}
+    return {"message": message, "finish_reason": choice.get("finish_reason"), "model": model,
+            "latency_ms": latency_ms, "prompt_tokens": usage.get("prompt_tokens"),
+            "completion_tokens": usage.get("completion_tokens")}

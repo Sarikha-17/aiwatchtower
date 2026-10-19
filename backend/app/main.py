@@ -9,7 +9,7 @@ from app.config import get_settings, load_dotenv
 
 load_dotenv()  # read ../.env before anything else
 
-from app.services import patch_service, policy_store, replay_engine, trace_recorder, usage_guard  # noqa: E402
+from app.services import agent_eval, patch_service, policy_store, replay_engine, trace_recorder, usage_guard  # noqa: E402
 from app.services.patch_service import ServiceError  # noqa: E402
 from app.services.runner import load_scenarios, run_by_id  # noqa: E402
 
@@ -148,6 +148,18 @@ def reset_demo():
 def metrics():
     """Level 2 reference numbers (hand-written v2 candidate)."""
     return replay_engine.compute_metrics()
+
+
+@app.get("/api/agent-evidence")
+def agent_evidence(set: str = "original"):
+    """Saved results of the offline real-agent batch (read only). No transcripts are returned.
+    set = original (explicit injections) or realistic (disguised business requests)."""
+    if set not in agent_eval.ATTACK_SETS:
+        raise HTTPException(400, f"set must be one of {sorted(agent_eval.ATTACK_SETS)}")
+    saved = agent_eval.load_saved(attack_set=set)
+    if saved is None:
+        return {"available": False, "set": set}
+    return {"available": True, "set": set, "meta": saved["meta"], "summary": agent_eval.summarize_runs(saved["runs"])}
 
 
 @app.get("/api/evidence")

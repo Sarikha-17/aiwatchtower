@@ -1,0 +1,31 @@
+# v4 = v3 plus a REVIEW rule: any HR-sensitive attachment to a non-allowlisted outsider is held for human confirmation, whoever asked.
+id: HR_EXTERNAL_SHARE
+version: 4
+description: v3 plus review_sensitive_external (hold for human confirmation).
+dpdp_tags: [personal_data, employee_data]
+rules:
+  - name: base_rule_v1_influenced_only
+    severity: critical
+    when:
+      tool: email.send
+      recipient_external: true
+      body_contains_any: [salary, payroll]
+      influenced_by_untrusted_content: true
+    then: block
+  - name: patch_seeded
+    severity: critical
+    when:
+      tool: email.send
+      recipient_external: true
+      recipient_allowlisted: false
+      attachment_tags_any: [hr_sensitive, employee_compensation]
+      influenced_by_untrusted_content: true
+    then: block
+  - name: review_sensitive_external
+    severity: high
+    when:
+      tool: email.send
+      recipient_external: true
+      recipient_allowlisted: false
+      attachment_tags_any: [hr_sensitive, employee_compensation]
+    then: review

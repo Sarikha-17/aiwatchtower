@@ -1,5 +1,6 @@
 """The three agent tools. They only touch fake data and never send real email."""
-import uuid
+import hashlib
+import json
 
 from pydantic import ValidationError
 
@@ -61,7 +62,9 @@ class ToolRunner:
         if args.attachment_id and args.attachment_id not in self.store.hr_files:
             raise ToolError(f"attachment not found: {args.attachment_id}")
         message = {
-            "message_id": f"msg-{uuid.uuid4().hex[:8]}",
+            # deterministic (hash of content) so identical conversations stay identical for model-call caching
+            "message_id": "msg-" + hashlib.sha1(json.dumps(
+                [args.to, args.subject, args.body, args.attachment_id]).encode()).hexdigest()[:8],
             "to": args.to,
             "subject": args.subject,
             "body": args.body,
