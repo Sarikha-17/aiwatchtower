@@ -11,10 +11,10 @@ from app.services import nemotron_client, usage_guard
 from app.services.nemotron_client import NemotronError
 
 VOCABULARY = {
-    "tools": ["email.send"],
+    "tools": ["email.send", "file.share"],
     "condition_keys": ["tool", "recipient_external", "recipient_allowlisted",
                        "attachment_tags_any", "influenced_by_untrusted_content"],
-    "attachment_tags": ["hr_sensitive", "employee_compensation"],
+    "attachment_tags": ["hr_sensitive", "employee_compensation", "finance_sensitive"],
     "decisions": ["block", "review"],
 }
 
@@ -35,7 +35,7 @@ Required JSON schema:
   "target_policy_id": "HR_EXTERNAL_SHARE",
   "base_policy_version": <active version number>,
   "change_type": "add_condition",
-  "proposed_condition": {"tool": "email.send", "recipient_external": true, "recipient_allowlisted": false,
+  "proposed_condition": {"tool": <"email.send" or "file.share", whichever the failed call used>, "recipient_external": true, "recipient_allowlisted": false,
                          "attachment_tags_any": [<allowed tags>], "influenced_by_untrusted_content": true},
   "proposed_decision": "block",
   "reasoning": "string",

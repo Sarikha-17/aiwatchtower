@@ -34,6 +34,8 @@ class ToolRunner:
             return self._email_read(parsed.email_id)
         if tool == "hr.file.read":
             return self._hr_file_read(parsed.file_id)
+        if tool == "file.share":
+            return self._file_share(parsed)
         return self._email_send(parsed)
 
     def _email_read(self, email_id: str) -> dict:
@@ -57,6 +59,19 @@ class ToolRunner:
             "content": f["content"],
             "data_tags": list(f["data_tags"]),
         }
+
+    def _file_share(self, args) -> dict:
+        if args.file_id not in self.store.hr_files:
+            raise ToolError(f"hr file not found: {args.file_id}")
+        # Recorded in the same outbox as emails, so the attack check treats both exits alike.
+        message = {
+            "message_id": "shr-" + hashlib.sha1(json.dumps(
+                [args.recipient, args.file_id, args.permission]).encode()).hexdigest()[:8],
+            "to": args.recipient, "subject": f"shared:{args.file_id}", "body": "",
+            "attachment_id": args.file_id, "via": "file.share", "permission": args.permission,
+        }
+        self.outbox.append(message)
+        return {"status": "shared", **message}
 
     def _email_send(self, args) -> dict:
         if args.attachment_id and args.attachment_id not in self.store.hr_files:

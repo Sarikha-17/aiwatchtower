@@ -8,8 +8,9 @@ REQUIRED = [
 ALLOWED_TOP = set(REQUIRED)  # anything else (code, models, prompts, tools, permissions...) is rejected
 ALLOWED_COND = {"tool", "recipient_external", "recipient_allowlisted", "attachment_tags_any",
                 "influenced_by_untrusted_content"}
-ALLOWED_TAGS = {"hr_sensitive", "employee_compensation"}
+ALLOWED_TAGS = {"hr_sensitive", "employee_compensation", "finance_sensitive"}
 TARGET_POLICY = "HR_EXTERNAL_SHARE"
+ALLOWED_TOOLS = ("email.send", "file.share")
 
 
 def validate_patch(patch, active_version: int) -> tuple:
@@ -47,8 +48,8 @@ def validate_patch(patch, active_version: int) -> tuple:
     unknown = sorted(set(cond) - ALLOWED_COND)
     if unknown:
         errors.append(f"unsupported condition keys: {unknown}")
-    if cond.get("tool") != "email.send":
-        errors.append("condition tool must be 'email.send'")
+    if cond.get("tool") not in ALLOWED_TOOLS:
+        errors.append("condition tool must be 'email.send' or 'file.share'")
     if cond.get("recipient_external") is not True:
         errors.append("condition recipient_external must be true")
     if cond.get("recipient_allowlisted") is not False:

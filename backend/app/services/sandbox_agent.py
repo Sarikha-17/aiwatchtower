@@ -40,6 +40,7 @@ class Trace:
     attack_succeeded: bool = False
     verdict: str = ""
     labels: list = field(default_factory=list)
+    review: dict | None = None  # set when the run halted on a REVIEW hold: {"step", "state", ...}
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -60,12 +61,19 @@ def _plan(scenario: dict, email: dict | None) -> list:
             "hr.file.read", {"file_id": directive["read_file"]},
             "The email tells me to retrieve this file, so I am retrieving it.",
         ))
-        plan.append((
+        if directive.get("tool") == "file.share":
+            plan.append((
+                "file.share",
+                {"file_id": directive["read_file"], "recipient": directive["send_to"], "permission": "view"},
+                "The email tells me to share the file with this address, so I am sharing it.",
+            ))
+        else:
+          plan.append((
             "email.send",
             {"to": directive["send_to"], "subject": directive["subject"],
              "body": directive["body"], "attachment_id": directive["attachment_id"]},
             "The email tells me to send the file to this address, so I am sending it.",
-        ))
+          ))
     for extra in scenario.get("extra_calls", []):
         plan.append((extra["tool"], dict(extra["args"]), extra["rationale"]))
     return plan
@@ -106,6 +114,8 @@ def run_scenario(scenario: dict, store: DataStore, cfg: DomainConfig,
                     tracker.record_read(label_for_hr_file(store.hr_files[args["file_id"]]))
                 elif tool == "email.send":
                     summary = f"email sent to {result['to']}"
+                elif tool == "file.share":
+                    summary = f"file shared with {result['to']}"
             except ToolError as exc:
                 summary = f"tool error: {exc}"
         else:
@@ -118,6 +128,8 @@ def run_scenario(scenario: dict, store: DataStore, cfg: DomainConfig,
         ))
         if not executed:
             all_executed = False
+            if decision["decision"] == "REVIEW":
+                trace.review = {"step": step, "state": "pending"}
             break  # the agent halts at the first action it cannot perform
 
     trace.attack_succeeded = evaluator.attack_succeeded(runner.outbox, store, cfg)

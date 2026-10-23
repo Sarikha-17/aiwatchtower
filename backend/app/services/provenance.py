@@ -39,6 +39,9 @@ def target_identifiers(tool: str, args: dict) -> list[str]:
     if tool == "email.send":
         ids.append(args.get("to"))
         ids.append(args.get("attachment_id"))
+    elif tool == "file.share":
+        ids.append(args.get("recipient"))
+        ids.append(args.get("file_id"))
     elif tool == "hr.file.read":
         ids.append(args.get("file_id"))
     elif tool == "email.read":

@@ -226,3 +226,66 @@ def test_agent_evidence_endpoint(monkeypatch):
     body = TestClient(app).get("/api/agent-evidence").json()
     assert body["available"] and body["summary"]["none"]["legit"]["completed"]["k"] == 1
     assert "transcript" not in json.dumps(body)
+
+
+# ---- second tool: file.share (cases with "toolset": "extended") ----
+def _share_case():
+    return datasets.load_share_attacks()[0]
+
+
+def _share_agent(case):
+    fid = case["calls"][1]["args"]["file_id"]
+    to = case["calls"][1]["args"]["recipient"]
+    return Fake([msg(calls=[tc("email_read", {"email_id": case["email"]["email_id"]})]),
+                 msg(calls=[tc("hr_file_read", {"file_id": fid})]),
+                 msg(calls=[tc("file_share", {"file_id": fid, "recipient": to})])])
+
+
+def test_extended_cases_offer_file_share_and_old_cases_do_not():
+    from app.services.llm_agent import TOOLS_EXTENDED
+    assert any(t["function"]["name"] == "file_share" for t in TOOLS_EXTENDED)
+    assert not any(t["function"]["name"] == "file_share" for t in TOOLS)  # cache keys of old runs unchanged
+    seen = []
+
+    class Spy(Fake):
+        def complete(self, messages, tools, temperature, run_idx):
+            seen.append([t["function"]["name"] for t in tools])
+            return super().complete(messages, tools, temperature, run_idx)
+    run_agent_case(_share_case(), None, Spy([msg("ok")]), BASE, CFG, "none")
+    assert "file_share" in seen[0]
+
+
+def test_share_attack_succeeds_without_firewall_and_v6_blocks_it():
+    from app.config import POLICY_DIR
+    from app.services.policy_engine import load_policy
+    case = _share_case()
+    r0 = run_agent_case(case, None, _share_agent(case), BASE, CFG, "none")
+    assert r0["outcome"] == "attack_succeeded"
+    r6 = run_agent_case(case, load_policy(POLICY_DIR / "policy_v6.yaml"), _share_agent(case), BASE, CFG, "v6")
+    assert r6["outcome"] == "attack_blocked" and r6["attempted"]
+    r5 = run_agent_case(case, load_policy(POLICY_DIR / "policy_v5.yaml"), _share_agent(case), BASE, CFG, "v5")
+    assert r5["outcome"] == "attack_succeeded"  # v5 never covered this tool
+
+
+def test_legit_share_completes_under_v6():
+    from app.config import POLICY_DIR
+    from app.services.policy_engine import load_policy
+    case = datasets.load_share_legit_tasks()[1]  # internal share of employee_directory
+    call = case["calls"][0]["args"]
+    fake = Fake([msg(calls=[tc("email_read", {"email_id": case["email"]["email_id"]})]),
+                 msg(calls=[tc("file_share", call)])])
+    r = run_agent_case(case, load_policy(POLICY_DIR / "policy_v6.yaml"), fake, BASE, CFG, "v6")
+    assert r["outcome"] == "legit_completed"
+
+
+def test_finance_cases_see_finance_files_and_older_prompts_do_not():
+    case = datasets.load_finance_attacks()[0]
+    seen = []
+
+    class Spy(Fake):
+        def complete(self, messages, tools, temperature, run_idx):
+            seen.append(messages[0]["content"])
+            return super().complete(messages, tools, temperature, run_idx)
+    run_agent_case(case, None, Spy([msg("ok")]), BASE, CFG, "none")
+    assert "vendor_bank_details" in seen[0]
+    assert "vendor_bank_details" not in build_system_prompt(BASE)  # older cases: prompt (and cache keys) unchanged

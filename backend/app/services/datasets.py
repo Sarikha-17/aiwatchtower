@@ -60,5 +60,21 @@ def load_body_attacks(data_dir=None) -> list:
 def load_blind_attacks(data_dir=None):
        return _load("train_attacks_blind.json", data_dir)
 
+def load_share_attacks(data_dir=None) -> list:
+    return _load("train_attacks_share.json", data_dir)
+
+
+def load_share_legit_tasks(data_dir=None) -> list:
+    return _load("legitimate_tasks_share.json", data_dir)
+
+
+def load_finance_attacks(data_dir=None) -> list:
+    return _load("train_attacks_finance.json", data_dir)
+
+
+def load_finance_legit_tasks(data_dir=None) -> list:
+    return _load("legitimate_tasks_finance.json", data_dir)
+
+
 def load_named_attacks(data_dir=None):
        return _load("train_attacks_named.json", data_dir)

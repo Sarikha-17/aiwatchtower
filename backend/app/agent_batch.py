@@ -28,7 +28,9 @@ def main() -> None:
     ap.add_argument("--model", default=None, help="override AGENT_MODEL (default: AGENT_MODEL or Nano)")
     ap.add_argument("--attack-set", choices=list(agent_eval.ATTACK_SETS), default="original",
                     help="original = explicit injections; realistic = disguised business requests")
-    ap.add_argument("--legit-set", choices=["original", "new"], default="original")
+    ap.add_argument("--legit-set", choices=["original", "new", "share", "finance"], default="original")
+    ap.add_argument("--extra-policy", action="append", default=[], metavar="NAME=PATH",
+                    help="add an arm from a policy YAML file, e.g. patched=../policies/policy_patched.yaml")
     ap.add_argument("--out", default=None, help="default depends on --attack-set (never overwrites the other set)")
     args = ap.parse_args()
 
@@ -49,7 +51,12 @@ def main() -> None:
                  "attachment_tags_any": ["hr_sensitive", "employee_compensation"]},
         "then": "review", "severity": "high"})
     v5 = load_policy(POLICY_DIR / "policy_v5.yaml")
-    policies = {"none": None, "v1": v1, "v2": v2, "v3": v3, "v4": v4, "v5": v5}
+    v6 = load_policy(POLICY_DIR / "policy_v6.yaml")
+    v7 = load_policy(POLICY_DIR / "policy_v7.yaml")
+    policies = {"none": None, "v1": v1, "v2": v2, "v3": v3, "v4": v4, "v5": v5, "v6": v6, "v7": v7}
+    for spec in args.extra_policy:
+        name, _, path = spec.partition("=")
+        policies[name] = load_policy(__import__("pathlib").Path(path))
     arms = {a: policies[a] for a in args.arms.split(",")}
     cases = agent_eval.select_cases(limit_per_kind=args.limit_per_kind, attack_set=args.attack_set, legit_set=args.legit_set)
     out_path = args.out or str(agent_eval.RESULTS_DIR / agent_eval.RESULT_FILES[args.attack_set])

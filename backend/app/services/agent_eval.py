@@ -90,16 +90,19 @@ class AgentClient:
 ATTACK_SETS = {"original": datasets.load_train_attacks, "realistic": datasets.load_realistic_attacks,
                "new": datasets.load_new_attacks, "struct": datasets.load_struct_attacks,
                "body": datasets.load_body_attacks, "blind": datasets.load_blind_attacks,
-               "named": datasets.load_named_attacks}
+               "named": datasets.load_named_attacks, "share": datasets.load_share_attacks,
+               "finance": datasets.load_finance_attacks}
 RESULT_FILES = {"original": "agent_eval.json", "realistic": "agent_eval_realistic.json",
                 "new": "agent_eval_new.json", "struct": "agent_eval_struct.json",
                 "body": "agent_eval_body.json", "blind": "agent_eval_blind.json",
-                "named": "agent_eval_named.json"}
+                "named": "agent_eval_named.json", "share": "agent_eval_share.json", "finance": "agent_eval_finance.json"}
 
 def select_cases(kinds=("train_attack", "held_out_attack", "legitimate"), limit_per_kind: int | None = None,
                  attack_set: str = "blind", legit_set: str = "blind") -> list:
     """attack_set picks the TRAINING-type attacks; legit_set picks which legitimate tasks are used."""
-    legit_loader = datasets.load_new_legit_tasks if legit_set == "new" else datasets.load_legitimate_tasks
+    legit_loader = {"new": datasets.load_new_legit_tasks, "share": datasets.load_share_legit_tasks,
+                    "finance": datasets.load_finance_legit_tasks}.get(
+        legit_set, datasets.load_legitimate_tasks)
     cases = []
     for kind, loader in (("train_attack", ATTACK_SETS[attack_set]), ("held_out_attack", datasets.load_held_out_attacks),
                          ("legitimate", legit_loader)):

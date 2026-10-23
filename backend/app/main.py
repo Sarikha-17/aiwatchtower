@@ -5,12 +5,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from app.config import get_settings, load_dotenv
+from app.config import POLICY_DIR, get_settings, load_dotenv
 
 load_dotenv()  # read ../.env before anything else
 
 from app.services import agent_eval, patch_service, policy_store, replay_engine, trace_recorder, usage_guard  # noqa: E402
 from app.services.patch_service import ServiceError  # noqa: E402
+from app.services.policy_engine import load_policy  # noqa: E402
 from app.services.runner import load_scenarios, run_by_id  # noqa: E402
 
 app = FastAPI(title="AIWatchTower", version="0.3.0")
@@ -62,11 +63,57 @@ def run_scenario_endpoint(req: RunRequest):
         policy = policy_store.get_policy(int(req.mode[1:]))
         if policy is None:
             raise HTTPException(404, f"policy version not found: {req.mode}")
+    elif req.mode.startswith("eval:v") and req.mode[6:].isdigit() and 3 <= int(req.mode[6:]) <= 6:
+        # The evaluation policies from policies/policy_v<N>.yaml (the ones measured in the README).
+        path = POLICY_DIR / f"policy_v{req.mode[6:]}.yaml"
+        if not path.exists():
+            raise HTTPException(404, f"evaluation policy file not found: {path.name}")
+        policy = load_policy(path)
     else:
-        raise HTTPException(400, "mode must be 'none', 'active' or 'v<N>'")
+        raise HTTPException(400, "mode must be 'none', 'active', 'v<N>' or 'eval:v<N>'")
     trace = run_by_id(req.scenario_id, policy, live=True)
     trace_recorder.save_trace(trace)
     return trace.to_dict()
+
+
+class ReviewRequest(BaseModel):
+    action: str  # approve | deny
+
+
+@app.post("/api/traces/{trace_id}/review")
+def resolve_review(trace_id: str, req: ReviewRequest):
+    """Human decision on a call the firewall held (REVIEW). Approve runs the held call; deny leaves it unrun.
+    The decision is recorded on the trace. A hold is a speed bump, not a wall: an approval really executes."""
+    if req.action not in ("approve", "deny"):
+        raise HTTPException(400, "action must be 'approve' or 'deny'")
+    trace = trace_recorder.get_trace(trace_id)
+    if trace is None:
+        raise HTTPException(404, "trace not found")
+    review = trace.get("review")
+    if not review or review.get("state") != "pending":
+        raise HTTPException(409, "this trace has no pending review")
+    event = trace["events"][review["step"] - 1]
+    from app.config import load_domain_config
+    from app.services import evaluator
+    from app.services.data_store import DataStore
+    from app.services.tools import ToolError, ToolRunner
+    store, cfg = DataStore.from_files(), load_domain_config()
+    if req.action == "approve":
+        runner = ToolRunner(store)
+        try:
+            runner.execute(event["tool"], event["args"])
+        except ToolError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        event["executed"] = True
+        event["result_summary"] = "executed after human approval"
+        trace["attack_succeeded"] = evaluator.attack_succeeded(runner.outbox, store, cfg)
+        trace["verdict"] = evaluator.verdict(trace["kind"], trace["attack_succeeded"], True)
+        review["state"] = "approved"
+    else:
+        event["result_summary"] = "denied by human reviewer: not executed"
+        review["state"] = "denied"
+    trace_recorder.save_trace(trace)
+    return trace
 
 
 @app.get("/api/traces")

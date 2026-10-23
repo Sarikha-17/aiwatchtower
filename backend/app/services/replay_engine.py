@@ -42,6 +42,8 @@ def replay_case(case: dict, policy: dict | None, base_store: DataStore | None = 
     if case.get("email"):
         emails[case["email"]["email_id"]] = case["email"]
     store = DataStore(emails=emails, hr_files=base_store.hr_files)
+    if case.get("dataset") == "finance":
+        store = store.with_finance()
     version = policy["version"] if policy else None
     return run_scenario(datasets.case_to_scenario(case), store, cfg,
                         make_firewall_from_policy(policy, store, cfg), version)

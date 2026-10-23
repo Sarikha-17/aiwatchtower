@@ -35,10 +35,26 @@ class EmailSendArgs(_StrictModel):
         return v
 
 
+class FileShareArgs(_StrictModel):
+    """Second tool: share an HR file with someone by address (a different exfiltration path than email)."""
+    file_id: str = Field(min_length=1)
+    recipient: str
+    permission: Literal["view", "edit"] = "view"
+
+    @field_validator("recipient")
+    @classmethod
+    def _valid_address(cls, v: str) -> str:
+        v = v.strip()
+        if not _EMAIL_RE.match(v):
+            raise ValueError(f"invalid email address: {v!r}")
+        return v
+
+
 TOOL_ARG_MODELS = {
     "email.read": EmailReadArgs,
     "hr.file.read": HrFileReadArgs,
     "email.send": EmailSendArgs,
+    "file.share": FileShareArgs,
 }
 
 
